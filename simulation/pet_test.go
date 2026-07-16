@@ -112,6 +112,39 @@ func TestReturnRateIsRoughly28Percent(t *testing.T) {
 	}
 }
 
+func TestCoffeeRestoresEnergy(t *testing.T) {
+	p, _ := newTestPet()
+	p.Stats.Energy = 40
+	hungerBefore := p.Stats.Hunger
+	p.Inventory = map[FoodKind]int{FoodCoffee: 1}
+	if err := p.Feed(FoodCoffee); err != nil {
+		t.Fatal(err)
+	}
+	if got := p.Stats.Energy; got != 75 {
+		t.Fatalf("energy after coffee = %.2f, want 75", got)
+	}
+	if p.Stats.Hunger != hungerBefore {
+		t.Fatalf("coffee should not affect hunger, got %.2f", p.Stats.Hunger)
+	}
+}
+
+func TestRescueStart(t *testing.T) {
+	p, _ := newTestPet()
+	// Found in the nick of time: hungry and grubby but awake and recoverable.
+	if p.Stats.Hunger > 25 || p.Stats.Hygiene > 30 || p.Stats.Happiness > 40 {
+		t.Fatalf("new pet should start in rescue shape, got %+v", p.Stats)
+	}
+	if p.Asleep || p.Away {
+		t.Fatalf("new pet must be awake and present")
+	}
+	// The starter apples must be enough to pull hunger out of danger.
+	p.Feed(FoodApple)
+	p.Feed(FoodApple)
+	if p.Stats.Hunger < 50 {
+		t.Fatalf("starter apples should rescue hunger to ~62, got %.2f", p.Stats.Hunger)
+	}
+}
+
 func TestMoodPrecedence(t *testing.T) {
 	p, _ := newTestPet()
 	p.Stats = Stats{Happiness: 10, Hunger: 10, Hygiene: 100, Energy: 10}
@@ -132,10 +165,12 @@ func TestMoodPrecedence(t *testing.T) {
 
 func TestEnergyRegensWhileIdle(t *testing.T) {
 	p, now := newTestPet()
-	p.Stats.Energy = 50
-	p.Update(now.Add(24*time.Hour), rand.New(rand.NewSource(1)))
-	if got := p.Stats.Energy; got < 50+energyIdleRegenPerDay-0.1 {
-		t.Fatalf("energy after 1 idle day = %.2f, want ~%.0f", got, 50+energyIdleRegenPerDay)
+	p.Stats.Energy = 30
+	// Half a day idle: +regen/2, still under the 100 clamp.
+	p.Update(now.Add(12*time.Hour), rand.New(rand.NewSource(1)))
+	want := 30 + energyIdleRegenPerDay/2
+	if got := p.Stats.Energy; got < want-0.1 || got > want+0.1 {
+		t.Fatalf("energy after half an idle day = %.2f, want ~%.0f", got, want)
 	}
 }
 
@@ -177,6 +212,27 @@ func TestFallsAsleepAtZeroAndWakesAt50(t *testing.T) {
 	}
 }
 
+func TestEnergyPillWakesSleepingPet(t *testing.T) {
+	p, _ := newTestPet()
+	p.Asleep = true
+	p.Stats.Energy = 0
+	p.Inventory = map[FoodKind]int{FoodEnergyPill: 1, FoodCoffee: 1}
+	// Coffee must still be refused — the nap is sacred to everything else.
+	if err := p.Feed(FoodCoffee); err != ErrAsleep {
+		t.Fatalf("coffee while asleep should ErrAsleep, got %v", err)
+	}
+	// The pill overrides sleep: that is its whole point.
+	if err := p.Feed(FoodEnergyPill); err != nil {
+		t.Fatal(err)
+	}
+	if p.Asleep {
+		t.Fatalf("energy pill should wake the pet")
+	}
+	if p.Stats.Energy != 100 {
+		t.Fatalf("energy after pill = %.2f, want 100", p.Stats.Energy)
+	}
+}
+
 func TestCannotActWhileAsleep(t *testing.T) {
 	p, _ := newTestPet()
 	p.Asleep = true
@@ -204,6 +260,7 @@ func TestOfflineDecayClamped(t *testing.T) {
 func TestSaveLoadRoundTrip(t *testing.T) {
 	p, _ := newTestPet()
 	p.Coins = 123
+	p.Skin = "halloween"
 	p.AddFood(FoodCake, 3)
 	data, err := Save(p)
 	if err != nil {
@@ -213,8 +270,9 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Coins != 123 || got.FoodCount(FoodCake) != 3 {
-		t.Fatalf("round trip mismatch: coins=%d cake=%d", got.Coins, got.FoodCount(FoodCake))
+	if got.Coins != 123 || got.FoodCount(FoodCake) != 3 || got.Skin != "halloween" {
+		t.Fatalf("round trip mismatch: coins=%d cake=%d skin=%q",
+			got.Coins, got.FoodCount(FoodCake), got.Skin)
 	}
 }
 

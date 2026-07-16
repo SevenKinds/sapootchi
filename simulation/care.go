@@ -4,9 +4,9 @@ package simulation
 // actions for the POC (Hygiene/Energy also have mini-games later). Petting is
 // always available and never gated.
 const (
-	batheRestore   = 40.0
-	restRestore    = 40.0
-	pettingBoost   = 5.0
+	batheRestore = 40.0
+	restRestore  = 40.0
+	pettingBoost = 5.0
 )
 
 // Bathe raises Hygiene.

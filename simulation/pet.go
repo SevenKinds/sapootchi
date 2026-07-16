@@ -102,6 +102,10 @@ type Pet struct {
 	Coins       int
 	Inventory   map[FoodKind]int
 
+	// Skin is the equipped cosmetic look ("" = classic). Plain data — the
+	// renderer resolves the name to art.
+	Skin string
+
 	BornAt   time.Time
 	LastSeen time.Time // reference point for wall-clock decay / away rolls
 
@@ -116,12 +120,17 @@ type Pet struct {
 }
 
 // NewPet creates a freshly hatched baby. The egg is skipped (hatches instantly).
+//
+// Lore: you found him just in the nick of time — starving (hunger nearly at the
+// runaway point), grubby, and lonely. A fresh start is too healthy; the first
+// session is a rescue: feed him, clean him up, cheer him up. The two starter
+// apples are exactly enough to pull him out of danger.
 func NewPet(name string, personality Personality, now time.Time) *Pet {
 	return &Pet{
 		Name:        name,
 		Phase:       PhaseBaby,
 		Personality: personality,
-		Stats:       Stats{Happiness: 80, Hunger: 80, Hygiene: 80, Energy: 80},
+		Stats:       Stats{Happiness: 25, Hunger: 12, Hygiene: 20, Energy: 55},
 		Coins:       0,
 		Inventory:   map[FoodKind]int{FoodApple: 2},
 		BornAt:      now,

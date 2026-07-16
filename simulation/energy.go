@@ -14,9 +14,11 @@ package simulation
 //     interacted with, sleeps until Energy reaches energyWakeThreshold (50).
 //     Hysteresis: sleep at 0, wake at 50.
 const (
-	// [TODO] tune these three.
-	energyIdleRegenPerDay  = 40.0  // "doing nothing"
-	energySleepRegenPerDay = 200.0 // resting / forced sleep
+	// Tuned so play feels generous: a day of idling fully recharges, a forced
+	// nap (0 -> wake at 50) resolves in ~2.5h, and the runner (cost 30) takes
+	// three full plays before the pet naps.
+	energyIdleRegenPerDay  = 100.0 // "doing nothing"
+	energySleepRegenPerDay = 480.0 // resting / forced sleep
 	energyWakeThreshold    = 50.0
 )
 

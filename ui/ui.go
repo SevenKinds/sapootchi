@@ -33,9 +33,9 @@ var (
 	SecondaryHi = color.RGBA{0x95, 0x7a, 0xff, 0xff}
 	Disabled    = color.RGBA{0x44, 0x4a, 0x59, 0xff}
 
-	Good  = color.RGBA{0x4c, 0xc9, 0x6d, 0xff} // stat > 50
-	Warn  = color.RGBA{0xff, 0xb3, 0x3b, 0xff} // 25-50
-	Bad   = color.RGBA{0xe6, 0x56, 0x4a, 0xff} // < 25
+	Good   = color.RGBA{0x4c, 0xc9, 0x6d, 0xff} // stat > 50
+	Warn   = color.RGBA{0xff, 0xb3, 0x3b, 0xff} // 25-50
+	Bad    = color.RGBA{0xe6, 0x56, 0x4a, 0xff} // < 25
 	Energy = color.RGBA{0x46, 0xc7, 0xe0, 0xff} // energy is special (inverted)
 	Gold   = color.RGBA{0xff, 0xd2, 0x4c, 0xff} // coins
 	Track  = color.RGBA{0x1c, 0x20, 0x2b, 0xff} // stat-bar background
@@ -171,6 +171,19 @@ func BackgroundGradient(dst *ebiten.Image) {
 		c := lerp(BGTop, BGBottom, t)
 		vector.DrawFilledRect(dst, 0, float32(i)*bandH, w, bandH+1, c, false)
 	}
+}
+
+// BGColorAt returns the background gradient color at design-space y — for
+// surfaces that must blend into the page (e.g. the reaction modal card).
+func BGColorAt(y, screenH float64) color.RGBA {
+	t := float32(y / screenH)
+	if t < 0 {
+		t = 0
+	}
+	if t > 1 {
+		t = 1
+	}
+	return lerp(BGTop, BGBottom, t)
 }
 
 func lerp(a, b color.RGBA, t float32) color.RGBA {

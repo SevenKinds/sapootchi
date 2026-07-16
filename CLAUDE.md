@@ -117,9 +117,16 @@ never fire buttons; `Game.Update` must call `ui.UpdateInput()` first.
 
 Mini-games are a plug-in list in `game/games.go` (`gameCatalog`); factories get
 `*Game` so they can honor `Settings.RealSpriteInGames` (real blob sprite as the
-player character vs shape stand-ins — toggle in Settings). Catch-food feeds
-Hunger (no energy); **Runner is the dedicated energy-burner** (spends Energy,
-pays coins). All shared visuals go through the `ui` package.
+player character vs shape stand-ins — toggle in Settings). Four games ship:
+Catch Food (Hunger via items, no energy), Runner (the energy-burner, coins by
+distance), Scrub (Hygiene; rub dirt spots off), Simon (Happiness + hidden
+Intelligence; the one game allowed real randomness — a fixed sequence would be
+memorizable). `Result{Score, Coins, StatDelta, Hidden, Items}`; the shared
+results card itemizes rewards, tap to dismiss. All shared visuals go through
+the `ui` package.
+
+**Energy economy (tuned):** idle regen 100%/day, sleep regen 480%/day
+(nap 0→50 in ~2.5h); costs Runner 30 / Scrub 10 / Simon 8 / Catch Food 0.
 
 **Save format:** `{Pet, Settings}` JSON (see `game/save.go`); legacy bare-Pet
 saves still load via fallback.

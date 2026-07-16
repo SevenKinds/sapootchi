@@ -17,6 +17,13 @@ type Page interface {
 	Draw(g *Game, screen *ebiten.Image)
 }
 
+// pointerCapturer is an optional Page extension: when a press lands where the
+// page wants its own drag gesture (e.g. dragging an inventory item), the pager
+// must not treat that gesture as a page swipe.
+type pointerCapturer interface {
+	CapturesPress(g *Game, x, y float64) bool
+}
+
 // Tab bar geometry (design-space units).
 const (
 	TabBarH  = 58.0
@@ -54,7 +61,7 @@ func NewMainScene() *MainScene {
 func (m *MainScene) settled() bool { return !m.dragging && !m.animating }
 
 func (m *MainScene) Update(g *Game) error {
-	m.updateSwipe()
+	m.updateSwipe(g)
 	m.updateTabs()
 
 	// Only the settled page takes interaction; Button taps already reject
@@ -65,11 +72,19 @@ func (m *MainScene) Update(g *Game) error {
 	return nil
 }
 
-func (m *MainScene) updateSwipe() {
-	// Swipes must start on the page area, not the tab bar.
+func (m *MainScene) updateSwipe(g *Game) {
+	// Swipes must start on the page area, not the tab bar — and not where the
+	// current page wants its own drag gesture. NOTE: the capture check must run
+	// BEFORE m.dragging is assigned (settled() reads it).
 	if ui.PointerJustPressed() {
-		_, py := ui.PressPos()
-		m.dragging = py < PageH
+		px, py := ui.PressPos()
+		wantSwipe := py < PageH
+		if wantSwipe && m.settled() {
+			if c, ok := m.pages[m.idx].(pointerCapturer); ok && c.CapturesPress(g, px, py) {
+				wantSwipe = false
+			}
+		}
+		m.dragging = wantSwipe
 	}
 	if m.dragging && ui.PointerHeld() {
 		m.pos = float64(m.idx) - ui.DragDX()/ScreenW
@@ -157,6 +172,11 @@ func (m *MainScene) drawTabBar(g *Game, screen *ebiten.Image) {
 	ui.FillRoundRect(screen, 0, PageH, ScreenW, TabBarH, 0, ui.Track)
 	ui.FillRoundRect(screen, 0, PageH, ScreenW, 2, 0, ui.PanelHi)
 
+	// Indicator pill slides with the pager position (tracks swipes live).
+	tabW := ScreenW / float64(len(m.pages))
+	pillCx := (m.pos + 0.5) * tabW
+	ui.FillRoundRect(screen, float32(pillCx-19), float32(PageH+7), 38, 30, 15, ui.Panel)
+
 	for i, p := range m.pages {
 		x, _, w, _ := m.tabRect(i)
 		cx := x + w/2
@@ -165,11 +185,9 @@ func (m *MainScene) drawTabBar(g *Game, screen *ebiten.Image) {
 		clr := ui.TextDim
 		if active {
 			clr = ui.Text
-			// Active indicator pill behind the icon.
-			ui.FillRoundRect(screen, float32(cx-19), float32(PageH+7), 38, 30, 15, ui.Panel)
 		}
 		ui.DrawIcon(screen, p.Icon(), cx, PageH+22, clr)
-		if active {
+		if active && m.settled() {
 			ui.DrawTextCenter(screen, p.Label(), cx, PageH+40, 9, ui.Text, true)
 		}
 	}

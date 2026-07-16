@@ -1,6 +1,8 @@
 package game
 
 import (
+	"image/color"
+
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"sapootchi/minigame"
@@ -11,29 +13,50 @@ import (
 // line here (plus its implementation of minigame.Game). The factory receives
 // the Game so entries can honor settings (e.g. the real-sprite toggle).
 type gameEntry struct {
-	name string
-	desc string
-	make func(g *Game) minigame.Game
+	name   string
+	desc   string
+	accent color.RGBA // badge color on the Games page (matches the stat it feeds)
+	make   func(g *Game) minigame.Game
 }
 
 var gameCatalog = []gameEntry{
-	{"Catch Food", "Catch treats — fills Hunger", func(g *Game) minigame.Game {
+	{"Catch Food", "Catch treats — fills Hunger", ui.Warn, func(g *Game) minigame.Game {
 		c := minigame.NewCatchFood(ScreenW, ScreenH)
 		c.Sprite = g.minigameSprite()
 		return c
 	}},
-	{"Runner", "Dodge & jump — burns Energy, pays coins", func(g *Game) minigame.Game {
+	{"Runner", "Dodge & jump — burns Energy, pays coins", ui.Energy, func(g *Game) minigame.Game {
 		r := minigame.NewRunner(ScreenW, ScreenH)
+		r.Sprite = g.minigameSprite()
+		return r
+	}},
+	{"Scrub", "Bath time — rub the dirt off, fills Hygiene", ui.Accent, func(g *Game) minigame.Game {
+		s := minigame.NewScrub(ScreenW, ScreenH)
+		s.Sprite = g.minigameSprite()
+		return s
+	}},
+	{"Simon", "Repeat the sequence — fills Happiness", ui.Good, func(g *Game) minigame.Game {
+		s := minigame.NewSimon(ScreenW, ScreenH)
+		s.Sprite = g.minigameSprite()
+		return s
+	}},
+	{"Arrows", "Hit the beat — timing game, wins Coffee", ui.Secondary, func(g *Game) minigame.Game {
+		a := minigame.NewArrows(ScreenW, ScreenH)
+		a.Sprite = g.minigameSprite()
+		return a
+	}},
+	{"River", "Swim upstream — dodge rocks, grab coins", ui.Gold, func(g *Game) minigame.Game {
+		r := minigame.NewRiver(ScreenW, ScreenH)
 		r.Sprite = g.minigameSprite()
 		return r
 	}},
 }
 
-// minigameSprite returns the blob sprite when the settings toggle is on, or nil
-// for the shape stand-ins.
+// minigameSprite returns the pet's current look (equipped skin or classic blob)
+// when the settings toggle is on, or nil for the shape stand-ins.
 func (g *Game) minigameSprite() *ebiten.Image {
 	if g.Settings.RealSpriteInGames {
-		return g.Blob
+		return g.baseSprite()
 	}
 	return nil
 }
@@ -64,8 +87,14 @@ func (p *GamesPage) Draw(g *Game, screen *ebiten.Image) {
 	for i, e := range gameCatalog {
 		b := p.rowButton(i)
 		b.Draw(screen, awake)
-		ui.DrawTextBold(screen, e.name, b.X+18, b.Y+14, 17, colIf(awake, ui.Text, ui.TextDim))
-		ui.DrawText(screen, e.desc, b.X+18, b.Y+40, 12, colIf(awake, ui.Text, ui.TextDim))
+		// Accent badge keyed to the stat the game feeds.
+		badge := e.accent
+		if !awake {
+			badge = ui.Disabled
+		}
+		ui.FillRoundRect(screen, float32(b.X+12), float32(b.Y+12), 8, float32(b.H-24), 4, badge)
+		ui.DrawTextBold(screen, e.name, b.X+32, b.Y+11, 16, colIf(awake, ui.Text, ui.TextDim))
+		ui.DrawText(screen, e.desc, b.X+32, b.Y+36, 11, colIf(awake, ui.Text, ui.TextDim))
 	}
 
 	if !awake {
@@ -73,10 +102,10 @@ func (p *GamesPage) Draw(g *Game, screen *ebiten.Image) {
 		if g.Pet.Away {
 			msg = "The pet ran away — leave food out on Home."
 		}
-		ui.DrawTextCenter(screen, msg, ScreenW/2, 96+float64(len(gameCatalog))*84+16, 12, ui.TextDim, false)
+		ui.DrawTextCenter(screen, msg, ScreenW/2, 90+float64(len(gameCatalog))*76+12, 12, ui.TextDim, false)
 	}
 }
 
 func (p *GamesPage) rowButton(i int) ui.Button {
-	return ui.Button{X: 24, Y: float64(96 + i*84), W: ScreenW - 48, H: 68, Secondary: true}
+	return ui.Button{X: 24, Y: float64(90 + i*76), W: ScreenW - 48, H: 64, Secondary: true}
 }

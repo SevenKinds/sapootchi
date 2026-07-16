@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sapootchi</title>
+  <!-- Mobile: fill the screen, no pinch-zoom, no scroll/bounce. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #202533; /* matches the game's gradient bottom */
+      overflow: hidden;
+      touch-action: none;            /* gestures belong to the game */
+      -webkit-user-select: none; user-select: none;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <script src="wasm_exec.js"></script>
+  <script>
+    const go = new Go();
+    WebAssembly.instantiateStreaming(fetch("sapootchi.wasm"), go.importObject)
+      .then((result) => go.run(result.instance))
+      .catch((err) => {
+        document.body.innerHTML =
+          '<p style="color:#edeff5;font-family:sans-serif;padding:2em">Failed to load: ' + err + "</p>";
+      });
+  </script>
+</body>
+</html>

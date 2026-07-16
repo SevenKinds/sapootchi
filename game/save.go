@@ -6,33 +6,61 @@ import (
 	"sapootchi/simulation"
 )
 
-// Settings are player preferences, persisted alongside the pet.
+// Settings are player preferences, persisted alongside the pets.
 type Settings struct {
 	// RealSpriteInGames renders the actual blob sprite as the player character
 	// inside mini-games instead of the simple shape stand-in.
 	RealSpriteInGames bool
+	// Skin is LEGACY: skins are per-pet now (Pet.Skin). Kept for decoding old
+	// saves; migrated and cleared on load.
+	Skin string `json:",omitempty"`
 }
 
-// saveFile is the on-disk format: pet + settings in one JSON document.
+// saveFile is the on-disk format. Multi-pet: Pets + Active. Older formats are
+// migrated on load (single Pet field, or a bare simulation.Pet document).
 type saveFile struct {
-	Pet      *simulation.Pet
+	Pet      *simulation.Pet `json:",omitempty"` // legacy single-pet field
+	Pets     []*simulation.Pet
+	Active   int
 	Settings Settings
 }
 
-func encodeSave(pet *simulation.Pet, settings Settings) ([]byte, error) {
-	return json.Marshal(saveFile{Pet: pet, Settings: settings})
+func encodeSave(pets []*simulation.Pet, active int, settings Settings) ([]byte, error) {
+	return json.Marshal(saveFile{Pets: pets, Active: active, Settings: settings})
 }
 
-// decodeSave reads the current format, falling back to the legacy format that
-// was a bare simulation.Pet document.
-func decodeSave(data []byte) (*simulation.Pet, Settings, error) {
+// decodeSave reads any save format generation and returns the pet roster.
+func decodeSave(data []byte) (pets []*simulation.Pet, active int, s Settings, err error) {
 	var sf saveFile
-	if err := json.Unmarshal(data, &sf); err == nil && sf.Pet != nil {
-		return sf.Pet, sf.Settings, nil
+	if err := json.Unmarshal(data, &sf); err == nil {
+		if len(sf.Pets) > 0 {
+			a := sf.Active
+			if a < 0 || a >= len(sf.Pets) {
+				a = 0
+			}
+			return migrateSkin(sf.Pets, a, sf.Settings)
+		}
+		if sf.Pet != nil { // single-pet format
+			return migrateSkin([]*simulation.Pet{sf.Pet}, 0, sf.Settings)
+		}
 	}
-	pet, err := simulation.Load(data) // legacy: bare pet
+	pet, err := simulation.Load(data) // oldest: bare pet
 	if err != nil {
-		return nil, Settings{}, err
+		return nil, 0, Settings{}, err
 	}
-	return pet, Settings{}, nil
+	return []*simulation.Pet{pet}, 0, Settings{}, nil
+}
+
+// migrateSkin moves the legacy global Settings.Skin onto the pets (they all
+// shared one look before skins became per-pet).
+func migrateSkin(pets []*simulation.Pet, active int, s Settings) ([]*simulation.Pet, int, Settings, error) {
+	if s.Skin != "" {
+		for _, p := range pets {
+			if p.Skin == "" {
+				p.Skin = s.Skin
+			}
+		}
+		s.Skin = ""
+	}
+	return pets, active, s, nil
 }

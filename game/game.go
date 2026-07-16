@@ -1,19 +1,13 @@
 package game
 
 import (
-	"bytes"
-	"image"
-	_ "image/png" // register PNG decoder for the embedded blob sprite
-	"log"
+	_ "image/png" // register PNG decoder for the embedded sprites
 	"math"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"sapootchi/assets"
 	"sapootchi/simulation"
 	"sapootchi/ui"
 )
@@ -27,45 +21,70 @@ const (
 
 // Game is the Ebiten root: it owns the pet, settings, a scene stack, and
 // persistence. It is a *view + input* layer over simulation — no game rules
-// live here.
+// live here. Storage is platform-specific (file on desktop, localStorage on
+// WASM — see storage_*.go).
 type Game struct {
+	// Pet is the ACTIVE pet — always == Pets[Active]. All pets keep living
+	// (decaying, sleeping, regenerating) whether active or not.
 	Pet      *simulation.Pet
+	Pets     []*simulation.Pet
+	Active   int
 	Settings Settings
 	Rng      *rand.Rand
-	Blob     *ebiten.Image
+	Sprites  *spriteBank
 
-	scenes   []Scene
-	savePath string
-	tick     int
+	scenes []Scene
+	tick   int
 
 	lastPerfectYearDay int // day-of-year the Perfect Care bonus was last given
 }
 
-// New builds the game, loading a saved pet if one exists or hatching a new one.
+// MaxPets caps the roster (tadpoles from the shop add pets up to this).
+const MaxPets = 3
+
+// New builds the game, loading the saved roster or rescuing a first pet.
 func New() *Game {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	savePath := savefilePath()
-	var pet *simulation.Pet
+	var pets []*simulation.Pet
+	var active int
 	var settings Settings
-	if data, err := os.ReadFile(savePath); err == nil {
-		if p, s, err := decodeSave(data); err == nil {
-			pet, settings = p, s
+	if data, err := readSave(); err == nil {
+		if ps, a, s, err := decodeSave(data); err == nil {
+			pets, active, settings = ps, a, s
 		}
 	}
-	if pet == nil {
-		pet = simulation.NewRandomPet("Blobby", time.Now(), rng)
+	if len(pets) == 0 {
+		pets = []*simulation.Pet{simulation.NewRandomPet("Blobby", time.Now(), rng)}
+		active = 0
 	}
 
 	g := &Game{
-		Pet:      pet,
+		Pet:      pets[active],
+		Pets:     pets,
+		Active:   active,
 		Settings: settings,
 		Rng:      rng,
-		Blob:     decodeImage(assets.BlobPNG),
-		savePath: savePath,
+		Sprites:  loadSprites(),
 	}
 	g.Push(NewMainScene())
 	return g
+}
+
+// SwitchPet makes the next pet in the roster active and returns it.
+func (g *Game) SwitchPet() *simulation.Pet {
+	g.Active = (g.Active + 1) % len(g.Pets)
+	g.Pet = g.Pets[g.Active]
+	g.Save()
+	return g.Pet
+}
+
+// AddPet appends a new pet and makes it active.
+func (g *Game) AddPet(p *simulation.Pet) {
+	g.Pets = append(g.Pets, p)
+	g.Active = len(g.Pets) - 1
+	g.Pet = p
+	g.Save()
 }
 
 // --- scene stack ---
@@ -86,7 +105,11 @@ func (g *Game) Update() error {
 	g.tick++
 	ui.UpdateInput()
 	// Real-time decay every tick (works off wall clock, not frame count).
-	g.Pet.Update(time.Now(), g.Rng)
+	// EVERY pet keeps living, not just the active one.
+	now := time.Now()
+	for _, p := range g.Pets {
+		p.Update(now, g.Rng)
+	}
 
 	if err := g.current().Update(g); err != nil {
 		return err
@@ -114,13 +137,18 @@ func (g *Game) Layout(int, int) (int, int) {
 // --- helpers ---
 
 // DrawBlob draws the pet centered at (cx,cy) with a gentle idle bob, scaled for
-// the current phase (baby = 60%). Coordinates are design-space.
+// the current phase (baby = 60%). The pose follows state: equipped skin, or on
+// the classic skin the current mood (Zz pose while asleep). Design-space coords.
 func (g *Game) DrawBlob(screen *ebiten.Image, cx, cy float64) {
-	bw := float64(g.Blob.Bounds().Dx())
-	bh := float64(g.Blob.Bounds().Dy())
+	img := g.petSprite()
+	bw := float64(img.Bounds().Dx())
+	bh := float64(img.Bounds().Dy())
 	const target = 190.0 // full-size display width in design px
 	scale := (target / bw) * g.Pet.Phase.RenderScale()
 	bob := math.Sin(float64(g.tick)/30.0) * 4
+	if g.Pet.Asleep {
+		bob = math.Sin(float64(g.tick)/55.0) * 2 // slow breathing
+	}
 
 	// Soft shadow at the feet (shrinks with the pet). ui.FillRoundRect scales
 	// its own coordinates, so pass design-space values.
@@ -134,31 +162,14 @@ func (g *Game) DrawBlob(screen *ebiten.Image, cx, cy float64) {
 	op.GeoM.Scale(scale*ui.Scale, scale*ui.Scale)
 	op.GeoM.Translate((cx-bw*scale/2)*ui.Scale, (cy-bh*scale/2+bob)*ui.Scale)
 	op.Filter = ebiten.FilterLinear
-	screen.DrawImage(g.Blob, op)
+	screen.DrawImage(img, op)
 }
 
-// Save writes the pet + settings to disk (best-effort).
+// Save writes the roster + settings to platform storage (best-effort).
 func (g *Game) Save() {
-	data, err := encodeSave(g.Pet, g.Settings)
+	data, err := encodeSave(g.Pets, g.Active, g.Settings)
 	if err != nil {
 		return
 	}
-	_ = os.MkdirAll(filepath.Dir(g.savePath), 0o755)
-	_ = os.WriteFile(g.savePath, data, 0o644)
-}
-
-func savefilePath() string {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return "sapootchi_save.json"
-	}
-	return filepath.Join(dir, "sapootchi", "save.json")
-}
-
-func decodeImage(b []byte) *ebiten.Image {
-	img, _, err := image.Decode(bytes.NewReader(b))
-	if err != nil {
-		log.Fatalf("decode sprite: %v", err)
-	}
-	return ebiten.NewImageFromImage(img)
+	_ = writeSave(data)
 }

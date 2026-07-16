@@ -49,7 +49,11 @@ STATS — visible (four meters)
     * At 0% -> FALLS ASLEEP on the spot; can't be interacted with; sleeps
       (fast regen) until Energy reaches 50%, then wakes. Hysteresis: sleep
       trigger 0, wake threshold 50.
-- [TODO] Tune energy rates: idle regen, sleep regen, mini-game energy cost.
+- [LOCKED-v1] Energy rates (tuned after playtest — v1 drained too fast):
+    idle regen 100%/day (a day of idling fully recharges)
+    sleep regen 480%/day (forced nap 0->50 resolves in ~2.5h)
+    costs: Runner 30, Scrub 10, Simon 8, Catch Food 0 (feeding != exercise)
+    -> three full Runner plays before a nap.
 - [LOCKED] SOFT-FAIL: if Hunger hits 0 -> the pet RUNS AWAY.
 - [LOCKED] Runs-away recovery: you get a prompt to LEAVE FOOD OUT to attract him
   back. Each day after (while food is left out) there is a 28% chance he returns.
@@ -89,17 +93,30 @@ FOOD & INVENTORY
 - [LOCKED] Catch-food mini-game awards 1-3 food items based on score.
 - [LOCKED] Standard food = +25% hunger (4 -> empty to full).
 - Food variety: Apple +25% | Sandwich +50% | Cake +10% hunger & +happiness.
+- [LOCKED] Coffee: +35% ENERGY (no hunger). Bought in shop (20c) OR won from
+  the Arrows timing game at score tiers. Cannot wake an asleep pet — the
+  forced nap stays sacred. Closes the loop: Runner burns energy -> coffee
+  refuels -> more play, paid in coins or skill.
 - Inventory enables hoarding, choice, premium brand-food later.
 
 MINI-GAMES (each one IS a care action)
 --------------------------------------
-- Catch falling food -> feeding -> Hunger (via items). [SHIP IN POC]
-- Fun game (Simon/memory) -> playing -> Happiness (+hidden Intelligence).
-- Scrub-the-pet (timing; simple action ok for POC) -> bath -> Hygiene.
-- Dodge/runner (Subway-Surfers-style) -> exercise -> Energy.
+- Catch falling food -> feeding -> Hunger (via items). [SHIPPED]
+- Simon (repeat the sequence, 3 strikes) -> playing -> Happiness + hidden
+  Intelligence (2/round). [SHIPPED]
+- Scrub (dirt spots on the pet, rub to clean, bubbles) -> bath -> Hygiene.
+  [SHIPPED]
+- Dodge/runner (jump obstacles, speed ramps) -> exercise -> Energy burner +
+  coins by distance. [SHIPPED]
+- Arrows (Arrowmania/DDR-style: arrows fall down 4 lanes to a receptor row,
+  hit direction on the beat; Perfect 3pts / Good 1pt, combos) -> dancing ->
+  Happiness, coins by score, COFFEE at score tiers (50/90/130). Fixed chart
+  (learnable = feature). Judges on PRESS, not release. [SHIPPED]
 - Petting (tap/stroke, always available, no game) -> small Happiness.
-- [LOCKED] Generic interface: Play() -> Result{Score, Coins, StatDelta, Items}
-  so each game is a plug-in. Ship catch-food only in POC.
+- [LOCKED] Generic interface: Play() -> Result{Score, Coins, StatDelta, Hidden,
+  Items} so each game is a plug-in. Results card shows itemized rewards,
+  tap-to-continue.
+- Games page: accent badge per game keyed to the stat it feeds.
 
 SOCIAL / FRIENDSHIP (boosts Happiness) — phased
 -----------------------------------------------
@@ -157,6 +174,11 @@ EVOLUTION (top retention lever)
 - Cheap to build: state + sprite swaps.
 - [LOCKED] Egg phase is near-instant: start -> get an egg -> hatches straight
   away. First real phase is already the BABY.
+- [LOCKED] RESCUE START: a fresh pet is NOT healthy — "you found him just in
+  the nick of time": Hunger 12 (near the runaway point!), Hygiene 20,
+  Happiness 25, Energy 55. The 2 starter apples are exactly enough to pull him
+  out of danger. First session = rescuing him = instant attachment. One-time
+  Home message: "You found him just in time — take care of him!"
 - [TODO] Evolution triggers/thresholds (baby -> branch: on which hidden stat is
   highest at what age).
 
@@ -172,10 +194,56 @@ LOYALTY INTEGRATION (post-POC) — frame every brand action as CARE
 - Visit a location -> travel sticker
 - Refer a friend -> pet gains a companion
 
+MULTI-PET / TADPOLE [LOCKED]
+----------------------------
+- Shop sells the TADPOLE (100 coins) -> hatches a whole new pet with a NATURE
+  (personality) different from every pet you already have. Adopted, not
+  rescued: hatches at 60% stats. Max 3 pets. Names: Blobby, Girino, Bolhas.
+- All pets keep living (decay/sleep/regen) in the background.
+- Switch pets by tapping the Home header (shows "name 2/3 - tap to switch").
+- Save format: {Pets[], Active, Settings}, migrates all older formats.
+
+GAME VARIETY PASS [LOCKED]
+--------------------------
+- Games that need per-run variety own a seeded rng (fixed patterns made every
+  run identical): CatchFood, Runner, Arrows chart, River. Scrub stays
+  deterministic; Simon always had rng.
+- CatchFood: item variety (apple/sandwich/cake/ROTTEN -2), bursts, ramping
+  speed+density; you keep what you catch (2 catches of a kind = 1 item).
+- Runner: random block heights/gaps, FLYING BARS (stay grounded!), coin
+  pickups (+2c each), ramps.
+- Arrows: random chart, density ramp, double notes later in the run.
+- RIVER (new, 6th game): vertical 3-lane swim-upstream; tap left/right to
+  switch lanes, dodge rocks (3 lives + invuln blink), grab coins (pay out
+  directly x2), speed ramps. Energy -18.
+
 ART / SPRITES
 -------------
-- [LOCKED] assets/blob.png = THE BLOB, full/adult size (green, big googly eyes).
-- [LOCKED] Baby = the same blob sprite rendered at 60% scale of the full size.
+- The pet IS the SAPO mascot (brand kit in artpacks/brand).
+- [LOCKED] `go run ./cmd/assetprep` converts brand art -> assets/sprites/:
+  EMOJIS 3D tifs -> moods/ (flood-fill white removal preserves the white eyes);
+  EMOJIS ESPECIAIS pngs -> skins/. Re-run when the kit changes.
+- [LOCKED] MOOD SPRITES on the classic skin: Happy=06 cheerful, Hungry=09
+  droopy, Excited=18 stars, Bored=05 heavy lids, Sleepy=08 half-shut,
+  Curious=03 side-glance, Lonely=12 shy, ASLEEP=10 (Zz). Reactions banked:
+  02 wink, 17 hearts, 13 angry (for feeding/petting events later).
+- [LOCKED] SKINS (Dress-Up): 12 themed looks from the kit (halloween, natal,
+  shrek, headphones, ...) + Classic. Equipped skin = full look (static, no
+  mood poses); mini-games use it too. PER PET: Pet.Skin (plain data; renderer
+  resolves name->art). Dress-Up dresses the ACTIVE pet (switch on Home).
+  Legacy global Settings.Skin migrates onto pets at load.
+- [LOCKED] ANIMATIONS: 5 curated mp4s (sleepy/triste/wink/coracoes/estrelas)
+  extracted by assetprep (needs ffmpeg; 10fps, 320px, white removal, UNION
+  bbox crop so loops don't jitter; ~1.7MB each). They show the CLASSIC sapo,
+  so they play in a MODAL (tap the pet on Home), never in place of a skinned
+  pet. Pick by state: asleep->sleepy, hungry/lonely->triste,
+  energized->estrelas, else random happy. Remaining 11 mp4s + WAV sounds
+  still banked. WASM cost: ~27MB total now.
+- [LOCKED] DEV MODE (-tags dev): Settings gains a DEV section (+1 Energy
+  Pill, +100 coins). Energy Pill (+100 energy, "Use") WAKES a sleeping pet —
+  that is its point; only WakesUp items override the nap (coffee still can't).
+- [LOCKED] assets/sprites/blob.png = classic look, full/adult size.
+- [LOCKED] Baby = the same sprite rendered at 60% scale of the full size.
 - For POC, fake art hard: shape/emoji sprites + squash-stretch tweens carry more
   life than expected and cost nothing. The "feels alive" animation/mood system
   is the real engineering cost (~70% of effort, 100% of the magic), NOT the sim.

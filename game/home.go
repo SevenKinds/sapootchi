@@ -1,7 +1,6 @@
 package game
 
 import (
-	"image/color"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -14,6 +13,7 @@ import (
 type HomePage struct {
 	flash      string
 	flashUntil int
+	greeted    bool
 }
 
 func (p *HomePage) Icon() ui.Icon { return ui.IconHome }
@@ -25,12 +25,36 @@ func (p *HomePage) setFlash(g *Game, msg string) {
 }
 
 func (p *HomePage) Update(g *Game) error {
+	// The rescue moment: a brand-new pet was found in bad shape.
+	if !p.greeted {
+		p.greeted = true
+		if g.Pet.Age(time.Now()) < 2*time.Minute {
+			p.flash = "You found him just in time — take care of him!"
+			p.flashUntil = g.tick + 420 // ~7s
+		}
+	}
+
+	// Tap the header to switch between pets (when there is more than one).
+	if len(g.Pets) > 1 && ui.Tapped(16, 16, ScreenW-32, 60) {
+		pet := g.SwitchPet()
+		p.setFlash(g, "Now caring for "+pet.Name)
+	}
+
 	if g.Pet.Away {
 		if !g.Pet.FoodLeftOut && p.leaveFoodButton().Clicked() {
 			g.Pet.LeaveFoodOut()
 			g.Save()
 		}
 		return nil
+	}
+
+	// Tap the pet -> a brand reaction animation plays in a modal. (Modal, not
+	// in-place: the animations show the classic SAPO, whatever skin is worn.)
+	if ui.Tapped(ScreenW/2-105, 85, 210, 175) {
+		if frames, ok := g.Sprites.Anims[p.pickAnim(g)]; ok {
+			g.Push(NewAnimModal(frames, g.current()))
+			return nil
+		}
 	}
 
 	if !g.Pet.Awake() {
@@ -54,6 +78,21 @@ func (p *HomePage) Update(g *Game) error {
 		g.Save()
 	}
 	return nil
+}
+
+// pickAnim chooses a reaction that fits the pet's state right now.
+func (p *HomePage) pickAnim(g *Game) string {
+	pet := g.Pet
+	switch {
+	case pet.Asleep:
+		return "sleepy"
+	case pet.Mood() == simulation.MoodHungry || pet.Mood() == simulation.MoodLonely:
+		return "triste"
+	case pet.Energized():
+		return "estrelas"
+	default:
+		return []string{"wink", "coracoes", "estrelas"}[g.Rng.Intn(3)]
+	}
 }
 
 func (p *HomePage) feedBest(g *Game) {
@@ -92,16 +131,8 @@ func (p *HomePage) Draw(g *Game, screen *ebiten.Image) {
 
 	awake := pet.Awake()
 
-	// Pet + state pill.
-	g.DrawBlob(screen, ScreenW/2, 185)
-	switch {
-	case pet.Asleep:
-		p.drawPill(screen, "Zzz... asleep until 50% energy", ui.Secondary)
-	case pet.Energized():
-		p.drawPill(screen, "Bursting with energy — let's play!", ui.Energy)
-	default:
-		p.drawPill(screen, "Mood: "+pet.Mood().String(), ui.Panel)
-	}
+	// Pet + state pill (shared view — same look on the Inventory page).
+	drawPetAndState(g, screen, 185, 262)
 
 	// Stats panel.
 	ui.FillRoundRect(screen, 16, 292, ScreenW-32, 150, 14, ui.Panel)
@@ -123,8 +154,16 @@ func (p *HomePage) Draw(g *Game, screen *ebiten.Image) {
 func (p *HomePage) drawHeader(g *Game, screen *ebiten.Image) {
 	pet := g.Pet
 	ui.FillRoundRect(screen, 16, 16, ScreenW-32, 60, 12, ui.Panel)
-	ui.DrawTextBold(screen, pet.Name, 32, 26, 18, ui.Text)
-	ui.DrawText(screen, pet.Personality.String()+" · "+pet.Phase.String(), 32, 50, 12, ui.TextDim)
+	name := pet.Name
+	if len(g.Pets) > 1 {
+		name += "  " + ui.Itoa(g.Active+1) + "/" + ui.Itoa(len(g.Pets))
+	}
+	ui.DrawTextBold(screen, name, 32, 26, 18, ui.Text)
+	sub := pet.Personality.String() + " · " + pet.Phase.String()
+	if len(g.Pets) > 1 {
+		sub += " · tap to switch"
+	}
+	ui.DrawText(screen, sub, 32, 50, 12, ui.TextDim)
 
 	// Coins, right-aligned with a gold dot.
 	coinStr := ui.Itoa(pet.Coins)
@@ -132,13 +171,6 @@ func (p *HomePage) drawHeader(g *Game, screen *ebiten.Image) {
 	rightX := float64(ScreenW - 32)
 	ui.DrawTextBold(screen, coinStr, rightX-cw, 30, 16, ui.Gold)
 	ui.FillCircle(screen, float32(rightX-cw-14), 38.5, 6.5, ui.Gold)
-}
-
-func (p *HomePage) drawPill(screen *ebiten.Image, msg string, clr color.Color) {
-	w := ui.TextWidth(msg, 12, true) + 28
-	x := (ScreenW - w) / 2
-	ui.FillRoundRect(screen, float32(x), 262, float32(w), 24, 12, clr)
-	ui.DrawTextCenter(screen, msg, ScreenW/2, 268, 12, ui.Text, true)
 }
 
 func (p *HomePage) drawAway(g *Game, screen *ebiten.Image) {

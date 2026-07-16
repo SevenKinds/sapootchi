@@ -15,7 +15,8 @@ import (
 type Result struct {
 	Score     int
 	Coins     int
-	StatDelta simulation.Stats             // additive delta to visible stats
+	StatDelta simulation.Stats            // additive delta to visible stats
+	Hidden    simulation.Hidden           // additive delta to hidden stats (intelligence, friendship)
 	Items     map[simulation.FoodKind]int // e.g. catch-food awards 1-3 food items
 }
 

@@ -1,0 +1,53 @@
+package game
+
+import (
+	"github.com/hajimehoshi/ebiten/v2"
+
+	"sapootchi/ui"
+)
+
+// SettingsPage holds player preferences. Toggles persist with the save file.
+type SettingsPage struct{}
+
+func (p *SettingsPage) Icon() ui.Icon { return ui.IconGear }
+func (p *SettingsPage) Label() string { return "More" }
+
+func (p *SettingsPage) Update(g *Game) error {
+	if x, y, w, h := p.toggleRect(0); ui.Tapped(x, y, w, h) {
+		g.Settings.RealSpriteInGames = !g.Settings.RealSpriteInGames
+		g.Save()
+	}
+	return nil
+}
+
+func (p *SettingsPage) Draw(g *Game, screen *ebiten.Image) {
+	ui.DrawTextBold(screen, "Settings", 24, 28, 24, ui.Text)
+
+	p.drawToggleRow(screen, 0,
+		"Real pet in mini-games",
+		"Play as your blob instead of a stand-in shape",
+		g.Settings.RealSpriteInGames)
+}
+
+func (p *SettingsPage) toggleRect(i int) (x, y, w, h float64) {
+	return 24, float64(96 + i*88), ScreenW - 48, 72
+}
+
+func (p *SettingsPage) drawToggleRow(screen *ebiten.Image, i int, title, desc string, on bool) {
+	x, y, w, h := p.toggleRect(i)
+	ui.FillRoundRect(screen, float32(x), float32(y), float32(w), float32(h), 14, ui.Panel)
+	ui.DrawTextBold(screen, title, x+18, y+14, 15, ui.Text)
+	ui.DrawText(screen, desc, x+18, y+38, 11, ui.TextDim)
+
+	// Switch: track + knob.
+	swW, swH := 52.0, 28.0
+	swX, swY := x+w-swW-18, y+(h-swH)/2
+	track := ui.Track
+	knobX := swX + 3
+	if on {
+		track = ui.Good
+		knobX = swX + swW - swH + 3
+	}
+	ui.FillRoundRect(screen, float32(swX), float32(swY), float32(swW), float32(swH), float32(swH/2), track)
+	ui.FillCircle(screen, float32(knobX+swH/2-3), float32(swY+swH/2), float32(swH/2-4), ui.Text)
+}

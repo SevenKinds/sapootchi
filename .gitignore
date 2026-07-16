@@ -1,0 +1,11 @@
+# Reference art (2.6 GB; brand kit + third-party packs — see artpacks/README.md)
+artpacks/*
+!artpacks/README.md
+
+# Build outputs
+/sapootchi
+*.wasm
+*.exe
+
+# OS noise
+.DS_Store

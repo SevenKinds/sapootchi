@@ -1,0 +1,215 @@
+LOYALTY PET ("Sapootchi") — DESIGN NOTES
+=========================================
+Living braindump of every idea, major and minor. Not a spec — this is where
+loose ideas and locked decisions both live. Mark items: [LOCKED] decided,
+[TODO] needs a number/decision, [IDEA] maybe-later.
+
+NORTH STAR
+----------
+- It's a daily-habit engine for a brand loyalty program, disguised as a pet.
+- Every session must answer: "How did my pet CHANGE because I came back today?"
+  If the only answer is "a bar went down", we failed.
+- Session target: under 2 minutes.
+- Design test for any feature: "does this make someone more loyal to the brand?"
+  — NOT "should this give points?"
+
+CORE LOOP
+---------
+- Open -> pet reacts to seeing you (mood greeting) -> care 30-90s -> one
+  mini-game -> earn coins/food -> spend on cosmetics/decor OR watch it evolve
+  -> leave.
+- [LOCKED] Guarantee at least ONE surprise/change per session (gift, event, or
+  needy moment) — not just maintenance. This is what delivers the north star.
+
+CURRENCIES (two, strictly separated)
+------------------------------------
+- Coins (soft): from care, mini-games, perfect-care bonus, achievements.
+  Spent on cosmetics, food, decor. No fraud risk -> client-side in POC.
+- Brand Points (hard): from real brand actions + rare care milestones.
+  Real-world value. Scarce, capped, server-authoritative. OUT OF SCOPE for POC.
+- [IDEA] mini-game Result can pay Items OR Coins — interface must not assume one
+  currency per game (catch-food pays food items, others pay coins).
+
+STATS — visible (four meters)
+-----------------------------
+- Happiness (fun mini-game, petting, friendships, events)
+- Hunger (feeding food items from inventory)
+- Hygiene (scrub mini-game / bath)
+- Energy (INVERTED — see below)
+- [LOCKED] Decay = function of elapsed WALL-CLOCK time, not frames/sessions.
+- [LOCKED] Hunger decays 25%/day -> full->empty in 4 days. One standard food
+  = +25% = exactly one day of hunger; 4 items empty->full.
+- [TODO] Decay rates for Happiness / Hygiene (start gentle, similar order to
+  hunger; tune so a daily player stays comfortable).
+- [LOCKED] ENERGY IS INVERTED (unlike the other three):
+    * RISES passively while idle ("doing nothing") and faster by resting/sleeping.
+    * SPENT by activity (mini-games — the runner especially).
+    * At 100% -> ENERGIZED: hyper; the only way down is a mini-game (idle just
+      refills it). A needy "let's play!" state.
+    * At 0% -> FALLS ASLEEP on the spot; can't be interacted with; sleeps
+      (fast regen) until Energy reaches 50%, then wakes. Hysteresis: sleep
+      trigger 0, wake threshold 50.
+- [TODO] Tune energy rates: idle regen, sleep regen, mini-game energy cost.
+- [LOCKED] SOFT-FAIL: if Hunger hits 0 -> the pet RUNS AWAY.
+- [LOCKED] Runs-away recovery: you get a prompt to LEAVE FOOD OUT to attract him
+  back. Each day after (while food is left out) there is a 28% chance he returns.
+  Recoverable, never permanent death.
+- [TODO] Neglect cascade idea: while a stat sits at 0, Happiness decays faster.
+- [TODO] Offline decay clamp (cap applied decay ~48h) so long absences aren't
+  hopeless — revisit now that hunger runs-away at 0.
+
+STATS — hidden (drive evolution + flavor, never shown)
+------------------------------------------------------
+- Intelligence (memory-type games)
+- Friendship (social features)
+- Personality (see below)
+- Age (wall-clock)
+
+PERSONALITY & MOOD (cheap depth)
+--------------------------------
+- Goal: players say "my pet is a menace", not "my pet is level 4".
+- Personalities (same mechanics, diff anims + dialogue):
+    Lazy (sleeps more, dislikes exercise)
+    Hyper (bounces, energy drains faster, loves runner)
+    Greedy (excited by coins, begs for snacks)
+    Curious (finds random items, wants to explore)
+- [LOCKED-for-POC] Personality ASSIGNED at hatch (random). Emergent personality
+  is a bigger v2 system — keep it out of v1.
+- Mood (separate from stats, derived from stats + recent events): Happy,
+  Hungry, Excited, Bored, Sleepy, Curious, Lonely. Mood changes ONLY animations
+  + dialogue, no gameplay effect.
+- [TODO] Mood precedence rule (e.g. Hungry overrides Bored overrides idle-Happy).
+- Idle animations — pet never stands still, cycle every 10-30s: sleeping,
+  chasing tail, dancing, stretching, looking at you, falling over, yawning,
+  eating crumbs.
+
+FOOD & INVENTORY
+----------------
+- [LOCKED] Feeding mini-game rewards FOOD ITEMS (to inventory), not direct fill.
+- [LOCKED] Catch-food mini-game awards 1-3 food items based on score.
+- [LOCKED] Standard food = +25% hunger (4 -> empty to full).
+- Food variety: Apple +25% | Sandwich +50% | Cake +10% hunger & +happiness.
+- Inventory enables hoarding, choice, premium brand-food later.
+
+MINI-GAMES (each one IS a care action)
+--------------------------------------
+- Catch falling food -> feeding -> Hunger (via items). [SHIP IN POC]
+- Fun game (Simon/memory) -> playing -> Happiness (+hidden Intelligence).
+- Scrub-the-pet (timing; simple action ok for POC) -> bath -> Hygiene.
+- Dodge/runner (Subway-Surfers-style) -> exercise -> Energy.
+- Petting (tap/stroke, always available, no game) -> small Happiness.
+- [LOCKED] Generic interface: Play() -> Result{Score, Coins, StatDelta, Items}
+  so each game is a plug-in. Ship catch-food only in POC.
+
+SOCIAL / FRIENDSHIP (boosts Happiness) — phased
+-----------------------------------------------
+- Visits (POC-friendly, faked/local): visit another pet, wave, gift ->
+  +happiness both.
+- Best Friends: pets randomly meet; after several days become BFFs, appear in
+  each other's homes.
+- Co-op mini-games (highest engagement, latest phase).
+- [IDEA] For POC without server, simulate friends with NPC pets so the hook
+  exists day one.
+
+DAILY & RETENTION
+-----------------
+- Perfect Care bonus: all four stats full at least once/day -> pet hugs you
+  ("Perfect Care!") -> +10 coins. Emotional moment first, coins second.
+- Daily gift: pet brings something small each day (pebble, flower, hat, leaf,
+  mystery egg).
+- Decay-while-away + ONE gentle notification: "your pet misses you".
+- Streak flame: visible daily-care streak, escalating coin bonus.
+- Daily quests (1-2): "play 1 mini-game, feed 3 times" — structure for aimless.
+- Random events (~15%/day): tiny choice, tiny reward, big personality
+  (butterfly: catch or watch fly? / scared: comfort or ignore?).
+- Needy moments (the tamagotchi steal): pet NEEDS you, not just empty bars —
+  wants to show a drawing, wants a bedtime story, learned a trick wants
+  applause, scared of thunder. No reward needed every time.
+
+ACHIEVEMENTS -> COSMETICS (not coins; visible rewards motivate more)
+--------------------------------------------------------------------
+- Fed 100 times -> Golden Spoon
+- 30-day streak -> Halo
+- Runner 500x -> Running Shoes
+- Perfect care x50 -> Golden Crown
+
+DRESS-UP / CUSTOMIZATION
+------------------------
+- [LOCKED] Dedicated dress-up screen (its own Scene) to select skin /
+  customization / equip cosmetics.
+
+COIN SINKS
+----------
+- Pet cosmetics: hats, accessories, skins.
+- Home decoration (long-term sink): wallpaper, floor, bed, plant, TV, window,
+  lamp, shelf.
+- Seasonal items (cheap FOMO, not predatory): Halloween pumpkin hat, Santa hat,
+  summer sunglasses, Valentine heart bow.
+- [TODO] Coin economy numbers: faucet ~30-60 coins/day engaged; prices — cheap
+  hat ~50, decor 100-300, premium skin 500+ (both short & long horizons).
+
+EVOLUTION (top retention lever)
+-------------------------------
+- Branching, driven by hidden stats + care patterns (NOT linear).
+        Egg -> Baby Blob -> {Cute -> Royal | Smart -> Wizard | Wild -> Ninja}
+- Overfeed -> chubby form. Lots of runner -> athletic. High happiness -> cheerful.
+- Slow reveal over days; players replay to see other branches.
+- Cheap to build: state + sprite swaps.
+- [LOCKED] Egg phase is near-instant: start -> get an egg -> hatches straight
+  away. First real phase is already the BABY.
+- [TODO] Evolution triggers/thresholds (baby -> branch: on which hidden stat is
+  highest at what age).
+
+WORLD FLAVOR (cheap, later)
+---------------------------
+- Fake weather (rain/snow/sun/wind): background changes, pet comments.
+- Seasonal events: reskins + one limited cosmetic per event.
+
+LOYALTY INTEGRATION (post-POC) — frame every brand action as CARE
+-----------------------------------------------------------------
+- Scan receipt -> premium food item
+- Buy featured product -> exclusive toy
+- Visit a location -> travel sticker
+- Refer a friend -> pet gains a companion
+
+ART / SPRITES
+-------------
+- [LOCKED] assets/blob.png = THE BLOB, full/adult size (green, big googly eyes).
+- [LOCKED] Baby = the same blob sprite rendered at 60% scale of the full size.
+- For POC, fake art hard: shape/emoji sprites + squash-stretch tweens carry more
+  life than expected and cost nothing. The "feels alive" animation/mood system
+  is the real engineering cost (~70% of effort, 100% of the magic), NOT the sim.
+
+ARCHITECTURE (Go / Ebiten)
+--------------------------
+- Scene manager: Scene interface (Update, Draw) + a stack — Home, MiniGame,
+  Shop, DressUp. Ebiten imposes no structure; decide day one.
+- Simulation package with ZERO Ebiten imports. Pet state = plain data; decay =
+  pure function of elapsed wall-clock time; render = pure view of state.
+  Single most valuable boundary: unit-testable, server-portable (hard currency
+  later), renderer-agnostic.
+- Mini-game plug-in interface (see MINI-GAMES).
+- POC state entirely local (coins only, no brand points). Note: local clock =
+  local cheat (device clock manipulation breaks streaks/decay) — acceptable POC,
+  a reason streaks/hard-points move server-side later.
+
+POC CUT LINE (recommended v1)
+-----------------------------
+IN:  one pet; 4 visible stats + wall-clock decay + runs-away-at-0; Home scene
+     with feed/bathe/rest + petting; ONE mini-game (catch-food); inventory +
+     food items; coins + a small shop; DressUp scene; mood->animation (placeholder
+     shapes ok); one needy moment; local save; instant egg->baby + ONE evolution
+     step (branching stubbed).
+OUT: social/NPC visits, achievements, home decor, daily quests, weather,
+     seasonal, brand points, full evolution tree.
+Proves the only two things a POC must: is the care-loop warm, and does earning
+coins feel good.
+
+OPEN QUESTIONS (parked)
+-----------------------
+- Runs-away recovery mechanic.
+- Decay rates for happiness / hygiene / energy.
+- Mood precedence table.
+- Evolution thresholds.
+- Coin prices / faucet balance.
+- Offline decay clamp interaction with runs-away.

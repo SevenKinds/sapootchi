@@ -3,6 +3,8 @@ package minigame
 import (
 	"image/color"
 	"math"
+	"math/rand"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
@@ -10,23 +12,20 @@ import (
 	"sapootchi/ui"
 )
 
-// Scrub is bath time -> feeds Hygiene. Dirt spots appear on the pet; rub the
-// pointer back and forth over them to scrub them off. Cleaned spots pop into
-// bubbles. Gentle exercise: a small energy cost.
+// Scrub is bath time -> feeds Hygiene. The pet starts FULLY DIRTY (all spots
+// present); rub the pointer back and forth to scrub them off, and the bath
+// ends the moment he's clean. A generous time cap catches walk-aways.
 //
-// Coordinates are design-space; deterministic spot placement comes from tick
-// hashing (no rand needed).
+// Uses real randomness for spot placement (variety per bath).
 
 const (
-	scrubDurationTicks = 25 * 60
-	scrubSpotMax       = 4   // max dirt spots alive at once
-	scrubSpawnEvery    = 100 // ticks between spawn attempts
-	scrubSpotR         = 22.0
-	scrubDirtFull      = 100.0
-	scrubPowerFactor   = 1.4 // dirt removed per design-px of pointer travel
+	scrubTimeCap     = 60 * 60 // hard cap ~60s; finishing is the real goal
+	scrubSpotCount   = 9
+	scrubSpotR       = 24.0
+	scrubDirtFull    = 100.0
+	scrubPowerFactor = 1.6 // dirt removed per design-px of pointer travel
 
-	scrubEnergyCost  = 10.0
-	scrubHygieneBase = 40.0
+	scrubEnergyCost = 10.0
 )
 
 type dirtSpot struct {
@@ -50,19 +49,37 @@ type Scrub struct {
 	lastX   float64
 	lastY   float64
 	hadPos  bool
-	score   int
+	cleaned int
 	ticks   int
 	done    bool
 }
 
-// NewScrub creates the game sized to the play area.
+// NewScrub creates the game sized to the play area, pet fully dirty.
 func NewScrub(width, height int) *Scrub {
-	return &Scrub{w: float64(width), h: float64(height)}
+	s := &Scrub{w: float64(width), h: float64(height)}
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	px, py, pw, ph := s.petBox()
+	for i := 0; i < scrubSpotCount; i++ {
+		// Inside an ellipse so spots sit "on" the blob.
+		var ex, ey float64
+		for {
+			ex, ey = rng.Float64()*2-1, rng.Float64()*2-1
+			if ex*ex+ey*ey <= 1 {
+				break
+			}
+		}
+		s.spots = append(s.spots, dirtSpot{
+			x:    px + pw/2 + ex*0.72*pw/2,
+			y:    py + ph/2 + ey*0.62*ph/2,
+			dirt: scrubDirtFull,
+		})
+	}
+	return s
 }
 
 func (s *Scrub) Name() string { return "Scrub" }
 
-// petBox is the area the pet occupies (and where dirt can appear).
+// petBox is the area the pet occupies (and where the dirt lives).
 func (s *Scrub) petBox() (x, y, w, h float64) {
 	w, h = 220, 190
 	return (s.w - w) / 2, 200, w, h
@@ -74,29 +91,11 @@ func (s *Scrub) Update() error {
 	}
 	s.ticks++
 
-	// Spawn dirt on a cadence, deterministically placed via tick hashing.
-	if s.ticks%scrubSpawnEvery == 1 && len(s.aliveSpots()) < scrubSpotMax {
-		px, py, pw, ph := s.petBox()
-		hx := float64((s.ticks*131)%1000) / 1000
-		hy := float64((s.ticks*577)%1000) / 1000
-		// Keep spots inside an ellipse so they sit "on" the blob.
-		ex := (hx*2 - 1) * 0.72
-		ey := (hy*2 - 1) * 0.62
-		if ex*ex+ey*ey > 1 {
-			n := math.Hypot(ex, ey)
-			ex, ey = ex/n*0.7, ey/n*0.7
-		}
-		s.spots = append(s.spots, dirtSpot{
-			x:    px + pw/2 + ex*pw/2,
-			y:    py + ph/2 + ey*ph/2,
-			dirt: scrubDirtFull,
-		})
-	}
-
 	s.updateScrubbing()
 	s.updateBubbles()
 
-	if s.ticks >= scrubDurationTicks {
+	// The bath ends when he's clean (or the cap saves a walk-away).
+	if s.cleaned >= len(s.spots) || s.ticks >= scrubTimeCap {
 		s.done = true
 	}
 	return nil
@@ -133,7 +132,7 @@ func (s *Scrub) updateScrubbing() {
 			s.bubbles = append(s.bubbles, bubble{x: cx, y: cy, vy: -0.6, life: 30})
 		}
 		if sp.dirt <= 0 {
-			s.score++
+			s.cleaned++
 			s.popBubbles(sp.x, sp.y)
 		}
 	}
@@ -159,16 +158,6 @@ func (s *Scrub) updateBubbles() {
 		}
 	}
 	s.bubbles = alive
-}
-
-func (s *Scrub) aliveSpots() []dirtSpot {
-	out := s.spots[:0:0]
-	for _, sp := range s.spots {
-		if sp.dirt > 0 {
-			out = append(out, sp)
-		}
-	}
-	return out
 }
 
 func (s *Scrub) Draw(screen *ebiten.Image) {
@@ -202,22 +191,27 @@ func (s *Scrub) Draw(screen *ebiten.Image) {
 
 	// HUD.
 	ui.DrawTextBold(screen, "SCRUB", 14, 14, 15, ui.Text)
-	ui.DrawText(screen, "rub the dirt off!", 14, 34, 11, ui.TextDim)
-	scoreStr := "cleaned " + ui.Itoa(s.score)
+	ui.DrawText(screen, "rub until he's spotless!", 14, 34, 11, ui.TextDim)
+	scoreStr := "clean " + ui.Itoa(s.cleaned) + "/" + ui.Itoa(len(s.spots))
 	ui.DrawTextBold(screen, scoreStr, s.w-52-ui.TextWidth(scoreStr, 15, true), 14, 15, ui.Gold)
-	secs := (scrubDurationTicks - s.ticks) / 60
+	secs := (scrubTimeCap - s.ticks) / 60
 	tStr := ui.Itoa(secs) + "s"
 	ui.DrawText(screen, tStr, s.w-52-ui.TextWidth(tStr, 12, false), 34, 12, ui.TextDim)
 }
 
 func (s *Scrub) Done() bool { return s.done }
 
-// Result: hygiene from the bath plus a bonus per spot, small coins, gentle
-// energy cost.
+// Result: hygiene proportional to how clean he got (a full bath = full bar),
+// small coins with a speed bonus for finishing, gentle energy cost.
 func (s *Scrub) Result() Result {
+	frac := float64(s.cleaned) / float64(len(s.spots))
+	coins := s.cleaned
+	if s.cleaned == len(s.spots) {
+		coins += (scrubTimeCap - s.ticks) / (10 * 60) // up to ~+5 for speed
+	}
 	return Result{
-		Score:     s.score,
-		Coins:     s.score * 2,
-		StatDelta: simulation.Stats{Hygiene: scrubHygieneBase + float64(s.score)*5, Energy: -scrubEnergyCost},
+		Score:     s.cleaned,
+		Coins:     coins,
+		StatDelta: simulation.Stats{Hygiene: 100 * frac, Energy: -scrubEnergyCost},
 	}
 }

@@ -36,19 +36,23 @@ const (
 
 type fallingItem struct {
 	kind catchKind
+	art  int // fruit sprite index (apple-class variety)
 	x, y float64
 	vy   float64
 	dead bool
 }
 
-// CatchFood is the feeding mini-game.
+// CatchFood is the feeding mini-game. (No pet render here — the bag is the
+// player.)
 type CatchFood struct {
-	// Sprite, when set, draws the pet carrying the basket.
-	Sprite *ebiten.Image
+	// Injected art: pixel fruits/meat for the falling food.
+	Fruits []*ebiten.Image
+	Meat   *ebiten.Image
 
 	w, h      float64
 	rng       *rand.Rand
 	basketX   float64
+	mouseIdle bool // keys silence the mouse until it is clicked again
 	items     []fallingItem
 	caught    [4]int // per kind
 	score     int
@@ -111,8 +115,17 @@ func (c *CatchFood) Update() error {
 		c.splatT--
 	}
 
-	// Basket control: pointer follows (mouse or touch), arrows nudge.
-	if mx, _ := ui.Cursor(); mx > 0 {
+	// Basket control: pointer follows (mouse or touch), arrows nudge. Playing
+	// with the keys puts the mouse to sleep; clicking wakes it again.
+	keys := ebiten.IsKeyPressed(ebiten.KeyLeft) || ebiten.IsKeyPressed(ebiten.KeyA) ||
+		ebiten.IsKeyPressed(ebiten.KeyRight) || ebiten.IsKeyPressed(ebiten.KeyD)
+	if keys {
+		c.mouseIdle = true
+	}
+	if ui.PointerJustPressed() {
+		c.mouseIdle = false
+	}
+	if mx, _ := ui.Cursor(); mx > 0 && (!c.mouseIdle || ui.PointerHeld()) {
 		c.basketX = mx
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) || ebiten.IsKeyPressed(ebiten.KeyA) {
@@ -161,12 +174,16 @@ func (c *CatchFood) Update() error {
 }
 
 func (c *CatchFood) spawn() {
-	c.items = append(c.items, fallingItem{
+	it := fallingItem{
 		kind: c.rollKind(),
 		x:    itemR + c.rng.Float64()*(c.w-2*itemR),
 		y:    -itemR,
 		vy:   c.fallSpeed() * (0.9 + c.rng.Float64()*0.35),
-	})
+	}
+	if len(c.Fruits) > 0 {
+		it.art = c.rng.Intn(len(c.Fruits))
+	}
+	c.items = append(c.items, it)
 }
 
 func (c *CatchFood) catch(k catchKind) {
@@ -197,27 +214,29 @@ func (c *CatchFood) Draw(screen *ebiten.Image) {
 		if it.dead {
 			continue
 		}
-		clr := catchColors[it.kind]
-		ui.FillCircle(screen, float32(it.x), float32(it.y), itemR, clr)
-		if it.kind == catchRotten { // X marks the bad one
-			ui.StrokeLine(screen, float32(it.x-5), float32(it.y-5), float32(it.x+5), float32(it.y+5), 2, ui.Track)
-			ui.StrokeLine(screen, float32(it.x-5), float32(it.y+5), float32(it.x+5), float32(it.y-5), 2, ui.Track)
-		}
+		c.drawFalling(screen, it)
 	}
 
 	basketTop := c.h - 44
-	if c.Sprite != nil {
-		ui.DrawImageFit(screen, c.Sprite, c.basketX-27, basketTop-36, 54, 38)
-	}
-	basketClr := ui.Secondary
+	// The catcher is a BAG: a slim rim (the old basket, slimmed) with the bag
+	// body hanging below it. Flashes red on a rotten catch.
+	rim := color.RGBA{0x6d, 0x49, 0x2e, 0xff}
+	body := color.RGBA{0x8b, 0x5e, 0x3c, 0xff}
 	if c.splatT > 0 {
-		basketClr = ui.Bad
+		rim = ui.Bad
+		body = color.RGBA{0xb8, 0x4a, 0x3e, 0xff}
 	}
+	// Body: slightly narrower than the rim, tapering via two stacked rects.
+	ui.FillRoundRect(screen, float32(c.basketX-basketW/2+5), float32(basketTop+4),
+		basketW-10, 30, 10, body)
+	ui.FillRoundRect(screen, float32(c.basketX-basketW/2+9), float32(basketTop+26),
+		basketW-18, 12, 6, body)
+	// Rim on top, slim.
 	ui.FillRoundRect(screen, float32(c.basketX-basketW/2), float32(basketTop),
-		basketW, basketH, 6, basketClr)
+		basketW, 9, 4.5, rim)
 
 	ui.DrawTextBold(screen, "CATCH FOOD", 14, 14, 15, ui.Text)
-	ui.DrawText(screen, "catch the good, dodge the rotten", 14, 34, 11, ui.TextDim)
+	ui.DrawText(screen, "catch the fresh, dodge the rotten", 14, 34, 11, ui.TextDim)
 	scoreStr := "score " + ui.Itoa(c.score)
 	ui.DrawTextBold(screen, scoreStr, c.w-52-ui.TextWidth(scoreStr, 15, true), 14, 15, ui.Gold)
 	secs := (catchDurationTicks - c.ticks) / 60
@@ -226,6 +245,38 @@ func (c *CatchFood) Draw(screen *ebiten.Image) {
 	if c.splatT > 0 {
 		ui.DrawTextCenter(screen, "yuck!", c.basketX, basketTop-56, 14, ui.Bad, true)
 	}
+}
+
+// drawFalling renders one falling item: pixel fruit/meat sprites, with rotten
+// ones tinted sickly. Falls back to colored circles without art.
+func (c *CatchFood) drawFalling(screen *ebiten.Image, it fallingItem) {
+	var spr *ebiten.Image
+	switch it.kind {
+	case catchSandwich:
+		spr = c.Meat
+	default:
+		if len(c.Fruits) > 0 {
+			spr = c.Fruits[it.art]
+		}
+	}
+	if spr == nil {
+		clr := catchColors[it.kind]
+		ui.FillCircle(screen, float32(it.x), float32(it.y), itemR, clr)
+		return
+	}
+	sw := float64(spr.Bounds().Dx())
+	f := itemR * 2.4 / sw
+	if sw > 32 { // the meat sprite has wide transparent margins
+		f = itemR * 4.6 / sw
+	}
+	w := sw * f
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(f*ui.Scale, f*ui.Scale)
+	op.GeoM.Translate((it.x-w/2)*ui.Scale, (it.y-w/2)*ui.Scale)
+	if it.kind == catchRotten {
+		op.ColorScale.Scale(0.45, 0.55, 0.30, 1) // sickly tint = don't catch
+	}
+	screen.DrawImage(spr, op)
 }
 
 func (c *CatchFood) Done() bool { return c.done }

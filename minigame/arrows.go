@@ -274,8 +274,8 @@ func drawChevron(dst *ebiten.Image, lane int, x, y float64, clr color.Color) {
 
 func (a *Arrows) Done() bool { return a.done }
 
-// Result: coins by score, coffee at score tiers, happiness from dancing, and
-// an energy cost (it IS exercise).
+// Result: COFFEE at score tiers (no coins — the beans are the pay), happiness
+// from dancing, and an energy cost (it IS exercise).
 func (a *Arrows) Result() Result {
 	coffee := 0
 	for _, tier := range arrowsCoffeeTiers {
@@ -285,7 +285,6 @@ func (a *Arrows) Result() Result {
 	}
 	r := Result{
 		Score:     a.score,
-		Coins:     a.score / 3,
 		StatDelta: simulation.Stats{Happiness: arrowsHappiness, Energy: -arrowsEnergyCost},
 	}
 	if coffee > 0 {

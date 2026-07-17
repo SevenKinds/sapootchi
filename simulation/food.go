@@ -36,8 +36,8 @@ type FoodDef struct {
 // never sold, never won — only spawned from dev mode.
 var Foods = map[FoodKind]FoodDef{
 	FoodApple:      {Name: "Apple", Hunger: standardFoodHunger},
-	FoodSandwich:   {Name: "Sandwich", Hunger: 50},
-	FoodCake:       {Name: "Cake", Hunger: 10, Happiness: 15},
+	FoodSandwich:   {Name: "Steak", Hunger: 50},
+	FoodCake:       {Name: "Berries", Hunger: 10, Happiness: 15},
 	FoodCoffee:     {Name: "Coffee", Verb: "Drink", Energy: 35},
 	FoodEnergyPill: {Name: "Energy Pill", Verb: "Use", Energy: 100, WakesUp: true},
 }
@@ -79,6 +79,7 @@ func (p *Pet) Feed(kind FoodKind) error {
 	p.Stats.Energy = clamp(p.Stats.Energy + def.Energy)
 	if p.Asleep && def.WakesUp {
 		p.Asleep = false
+		p.NapVoluntary = false
 	}
 	return nil
 }

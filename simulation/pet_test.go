@@ -233,6 +233,52 @@ func TestEnergyPillWakesSleepingPet(t *testing.T) {
 	}
 }
 
+func TestRestIsVoluntaryNapUntilFull(t *testing.T) {
+	p, now := newTestPet()
+	p.Stats.Energy = 60
+	p.Rest()
+	if !p.Asleep || !p.NapVoluntary {
+		t.Fatalf("rest should start a voluntary nap")
+	}
+	// Past the forced-nap threshold (50) but not full -> STAYS asleep.
+	p.Stats.Energy = 80
+	now = now.Add(time.Second)
+	p.Update(now, rand.New(rand.NewSource(1)))
+	if !p.Asleep {
+		t.Fatalf("voluntary nap must not wake at the forced threshold")
+	}
+	// Sleep regen carries it to 100 -> wakes, flag cleared.
+	now = now.Add(2 * time.Hour)
+	p.Update(now, rand.New(rand.NewSource(1)))
+	if p.Asleep || p.NapVoluntary {
+		t.Fatalf("voluntary nap should end at full energy, got %.1f asleep=%v", p.Stats.Energy, p.Asleep)
+	}
+	if p.Stats.Energy < 99.9 {
+		t.Fatalf("should wake full, got %.1f", p.Stats.Energy)
+	}
+}
+
+func TestPettingCooldown(t *testing.T) {
+	p, now := newTestPet()
+	before := p.Stats.Happiness
+	if !p.Pet(now) {
+		t.Fatalf("first pet should grant happiness")
+	}
+	if p.Stats.Happiness <= before {
+		t.Fatalf("happiness should rise on first pet")
+	}
+	mid := p.Stats.Happiness
+	if p.Pet(now.Add(30 * time.Second)) {
+		t.Fatalf("petting inside the cooldown must not grant again")
+	}
+	if p.Stats.Happiness != mid {
+		t.Fatalf("spam petting changed happiness")
+	}
+	if !p.Pet(now.Add(4 * time.Minute)) {
+		t.Fatalf("petting after the cooldown should grant again")
+	}
+}
+
 func TestCannotActWhileAsleep(t *testing.T) {
 	p, _ := newTestPet()
 	p.Asleep = true

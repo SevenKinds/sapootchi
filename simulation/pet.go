@@ -114,9 +114,14 @@ type Pet struct {
 	Away        bool
 	FoodLeftOut bool
 
-	// Asleep: forced sleep triggered when Energy hits 0 (see energy.go). Stays
-	// asleep until Energy regenerates to energyWakeThreshold.
-	Asleep bool
+	// Asleep: sleep triggered when Energy hits 0 (see energy.go), or started
+	// voluntarily via Rest ("tuck in"). Forced naps wake at the threshold;
+	// voluntary ones sleep until full.
+	Asleep       bool
+	NapVoluntary bool
+
+	// LastPetted rate-limits the petting happiness bonus.
+	LastPetted time.Time
 }
 
 // NewPet creates a freshly hatched baby. The egg is skipped (hatches instantly).

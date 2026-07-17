@@ -1,15 +1,18 @@
 package simulation
 
-// Direct care actions available from the Home scene. Bathe/Rest are simple
-// actions for the POC (Hygiene/Energy also have mini-games later). Petting is
-// always available and never gated.
+import "time"
+
+// Direct care actions available from the Home scene. Bathing happens through
+// the Scrub mini-game; Rest tucks the pet in; petting is an affection moment.
 const (
 	batheRestore = 40.0
-	restRestore  = 40.0
-	pettingBoost = 5.0
+
+	pettingBoost    = 4.0
+	pettingCooldown = 3 * time.Minute
 )
 
-// Bathe raises Hygiene.
+// Bathe raises Hygiene (kept as the plain-sim primitive; the UI reaches it
+// through the Scrub mini-game).
 func (p *Pet) Bathe() {
 	if !p.Awake() {
 		return
@@ -17,20 +20,30 @@ func (p *Pet) Bathe() {
 	p.Stats.Hygiene = clamp(p.Stats.Hygiene + batheRestore)
 }
 
-// Rest raises Energy (a manual fast-forward on top of passive regen).
+// Rest tucks the pet in: a VOLUNTARY nap. It sleeps (fast energy regen) until
+// energy is FULL — unlike the forced nap, which wakes at the threshold. The
+// energy pill still wakes it early.
 func (p *Pet) Rest() {
 	if !p.Awake() {
 		return
 	}
-	p.Stats.Energy = clamp(p.Stats.Energy + restRestore)
+	p.Asleep = true
+	p.NapVoluntary = true
 }
 
-// Pet (petting) gives a small Happiness boost.
-func (p *Pet) Pet() {
+// Pet (petting) is an affection moment: the happiness bonus lands at most once
+// per cooldown window. Returns whether the bonus was granted — the UI shows
+// hearts either way, but spamming pets is love, not progress.
+func (p *Pet) Pet(now time.Time) bool {
 	if !p.Awake() {
-		return
+		return false
 	}
+	if now.Sub(p.LastPetted) < pettingCooldown {
+		return false
+	}
+	p.LastPetted = now
 	p.Stats.Happiness = clamp(p.Stats.Happiness + pettingBoost)
+	return true
 }
 
 // PerfectCare reports whether all four visible stats are full. The Home scene

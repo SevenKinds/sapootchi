@@ -63,17 +63,24 @@ func (p *Pet) applyDecay(now time.Time) {
 
 	// Energy is inverted: it regenerates (idle, or fast while asleep) and is
 	// spent by activity. Evaluate the sleep trigger BEFORE regen so hitting 0
-	// naps him; wake once regen carries him back to the threshold.
+	// naps him; wake once regen carries him back to the wake point — the
+	// threshold for forced naps, FULL for voluntary tuck-ins.
 	if !p.Asleep && p.Stats.Energy <= 0 {
 		p.Asleep = true
+		p.NapVoluntary = false
 	}
 	regen := energyIdleRegenPerDay
 	if p.Asleep {
 		regen = energySleepRegenPerDay
 	}
 	p.Stats.Energy = clamp(p.Stats.Energy + regen*days)
-	if p.Asleep && p.Stats.Energy >= energyWakeThreshold {
+	wakeAt := energyWakeThreshold
+	if p.NapVoluntary {
+		wakeAt = 100
+	}
+	if p.Asleep && p.Stats.Energy >= wakeAt {
 		p.Asleep = false
+		p.NapVoluntary = false
 	}
 
 	p.LastSeen = now

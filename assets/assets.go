@@ -24,3 +24,9 @@ var BlobPNG []byte
 //
 //go:embed sprites
 var Sprites embed.FS
+
+// IconFontTTF is MesloLGS Nerd Font Mono (Apache 2.0 / MIT patches) — used for
+// its icon glyphs (Font Awesome & friends in the private-use area).
+//
+//go:embed fonts/MesloLGSNerdFontMono-Regular.ttf
+var IconFontTTF []byte

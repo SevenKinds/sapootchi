@@ -32,9 +32,14 @@ type Game struct {
 	Settings Settings
 	Rng      *rand.Rand
 	Sprites  *spriteBank
+	Main     *MainScene // the pager, for programmatic tab navigation
 
 	scenes []Scene
 	tick   int
+
+	// Transient reaction pose (petting hearts, etc.) shown over the mood.
+	reactImg   *ebiten.Image
+	reactUntil int
 
 	lastPerfectYearDay int // day-of-year the Perfect Care bonus was last given
 }
@@ -67,7 +72,9 @@ func New() *Game {
 		Rng:      rng,
 		Sprites:  loadSprites(),
 	}
-	g.Push(NewMainScene())
+	ui.SetTheme(settings.Theme)
+	g.Main = NewMainScene()
+	g.Push(g.Main)
 	return g
 }
 
@@ -150,12 +157,11 @@ func (g *Game) DrawBlob(screen *ebiten.Image, cx, cy float64) {
 		bob = math.Sin(float64(g.tick)/55.0) * 2 // slow breathing
 	}
 
-	// Soft shadow at the feet (shrinks with the pet). ui.FillRoundRect scales
-	// its own coordinates, so pass design-space values.
-	shW := bw * scale * 0.55
-	const shH = 16.0
-	ui.FillRoundRect(screen, float32(cx-shW/2), float32(cy+bh*scale/2-shH),
-		float32(shW), shH, shH/2, ui.Shadow)
+	// Soft elliptical shadow at the feet. It shrinks a touch as the idle bob
+	// lifts the pet, which sells the hover.
+	feetY := cy + bh*scale/2 + 2
+	shRx := bw * scale * 0.30 * (1 - bob*0.02)
+	ui.FillEllipse(screen, cx, feetY, shRx, 8, ui.Shadow)
 
 	// The sprite is drawn directly, so apply the render scale here.
 	op := &ebiten.DrawImageOptions{}

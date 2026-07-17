@@ -15,7 +15,7 @@ var inventoryOrder = []simulation.FoodKind{
 	simulation.FoodCoffee,
 }
 
-// invOrder is the slots actually shown: the base items, plus dev-only items
+// invOrder is the kinds actually shown: the base items, plus dev-only items
 // when in dev mode or when some are held (a release build must still show
 // pills spawned in a dev session).
 func invOrder(g *Game) []simulation.FoodKind {
@@ -26,10 +26,9 @@ func invOrder(g *Game) []simulation.FoodKind {
 	return order
 }
 
-// InventoryPage shows Blobby (in whatever state he's in — same as Home) and a
-// shelf of item icons. Two ways to give him an item: DRAG it onto him, or TAP
-// it to select and then tap him (friendlier on touch). If he's asleep, he
-// can't take it — same rule as everywhere else.
+// InventoryPage shows Blobby (in whatever state he's in — same as Home), his
+// CURRENT STATS (so you can pick the right item), and a fixed grid of item
+// slots. Give an item by dragging it onto him, or tap-select then tap him.
 type InventoryPage struct {
 	dragging   bool
 	dragKind   simulation.FoodKind
@@ -44,28 +43,27 @@ func (p *InventoryPage) Label() string { return "Items" }
 
 // Layout (design-space).
 const (
-	invBlobCy  = 200.0
-	invPillY   = 300.0
-	invShelfY  = 448.0
-	invSlotW   = 66.0
-	invSlotGap = 12.0
+	invBlobCx  = 150.0 // pet sits left; the stat column takes the right edge
+	invBlobCy  = 158.0
+	invPillY   = 254.0
+	invGridY   = 352.0
+	invSlots   = 10 // fixed capacity display: 2 rows of 5
+	invCols    = 5
+	invSlotW   = 58.0
+	invSlotGap = 8.0
+	invHintY   = 500.0
 )
 
-func (p *InventoryPage) slotRect(g *Game, i int) (x, y, w, h float64) {
-	n := float64(len(invOrder(g)))
-	// Shrink slots when there are more of them (dev items add a 5th).
-	slotW := invSlotW
-	if maxW := (ScreenW - 40 - (n-1)*invSlotGap) / n; maxW < slotW {
-		slotW = maxW
-	}
-	total := n*slotW + (n-1)*invSlotGap
+func (p *InventoryPage) slotRect(i int) (x, y, w, h float64) {
+	total := invCols*invSlotW + (invCols-1)*invSlotGap
 	x0 := (ScreenW - total) / 2
-	return x0 + float64(i)*(slotW+invSlotGap), invShelfY, slotW, slotW
+	col, row := i%invCols, i/invCols
+	return x0 + float64(col)*(invSlotW+invSlotGap), invGridY + float64(row)*(invSlotW+invSlotGap), invSlotW, invSlotW
 }
 
 // blobZone is the drop target around the pet.
 func (p *InventoryPage) blobZone() (x, y, w, h float64) {
-	return ScreenW/2 - 110, invBlobCy - 110, 220, 220
+	return invBlobCx - 100, invBlobCy - 100, 200, 200
 }
 
 // CapturesPress claims presses on stocked slots so the pager doesn't treat an
@@ -78,7 +76,7 @@ func (p *InventoryPage) CapturesPress(g *Game, x, y float64) bool {
 		if g.Pet.FoodCount(kind) <= 0 {
 			continue
 		}
-		sx, sy, sw, sh := p.slotRect(g, i)
+		sx, sy, sw, sh := p.slotRect(i)
 		if x >= sx && x <= sx+sw && y >= sy && y <= sy+sh {
 			return true
 		}
@@ -99,7 +97,7 @@ func (p *InventoryPage) Update(g *Game) error {
 			if g.Pet.FoodCount(kind) <= 0 {
 				continue
 			}
-			sx, sy, sw, sh := p.slotRect(g, i)
+			sx, sy, sw, sh := p.slotRect(i)
 			if px >= sx && px <= sx+sw && py >= sy && py <= sy+sh {
 				p.dragging = true
 				p.dragKind = kind
@@ -119,7 +117,7 @@ func (p *InventoryPage) Update(g *Game) error {
 		}
 		// Not a drop — was it a tap on a slot? Toggle selection.
 		for i, kind := range invOrder(g) {
-			if g.Pet.FoodCount(kind) > 0 && ui.Tapped(p.slotRect(g, i)) {
+			if g.Pet.FoodCount(kind) > 0 && ui.Tapped(p.slotRect(i)) {
 				if p.selected && p.selKind == kind {
 					p.selected = false
 				} else {
@@ -159,60 +157,69 @@ func (p *InventoryPage) give(g *Game, kind simulation.FoodKind) {
 func (p *InventoryPage) Draw(g *Game, screen *ebiten.Image) {
 	ui.DrawTextBold(screen, "Inventory", 24, 28, 24, ui.Text)
 
-	// Blobby, in the same state as on Home.
-	home := drawPetAndState(g, screen, invBlobCy, invPillY)
+	// Blobby (left), in the same state as on Home; his current stats on the
+	// right — the context for choosing what to give.
+	home := drawPetAndState(g, screen, invBlobCx, invBlobCy, invPillY)
+	if home {
+		drawStatColumn(g, screen, 268, 76, 70)
+	}
 
-	// Shelf.
+	// Fixed slot grid.
+	order := invOrder(g)
 	total := 0
-	for i, kind := range invOrder(g) {
+	for i := 0; i < invSlots; i++ {
+		sx, sy, sw, sh := p.slotRect(i)
+
+		if i >= len(order) {
+			// Empty capacity slot.
+			ui.FillRoundRect(screen, float32(sx), float32(sy), float32(sw), float32(sh), 12, ui.Track)
+			continue
+		}
+		kind := order[i]
 		count := g.Pet.FoodCount(kind)
 		total += count
-		sx, sy, sw, sh := p.slotRect(g, i)
 
-		bg := ui.Panel
-		if count > 0 {
-			bg = ui.PanelHi
-		}
-		// Selection ring.
 		if p.selected && p.selKind == kind {
-			ui.FillRoundRect(screen, float32(sx-3), float32(sy-3), float32(sw+6), float32(sh+6), 16, ui.Accent)
+			ui.FillRoundRect(screen, float32(sx-3), float32(sy-3), float32(sw+6), float32(sh+6), 14, ui.Accent)
 		}
-		ui.FillRoundRect(screen, float32(sx), float32(sy), float32(sw), float32(sh), 14, bg)
+		ui.FillRoundRect(screen, float32(sx), float32(sy), float32(sw), float32(sh), 12,
+			colIf(count > 0, ui.PanelHi, ui.Panel))
 
-		if count > 0 {
-			// Hide the shelf copy of the icon while it's being dragged... only
-			// if it's the last one; otherwise the stack remains.
-			if !(p.dragging && p.dragKind == kind && count == 1) {
-				drawItemIcon(screen, kind, sx+sw/2, sy+sh/2)
-			}
-			// Count badge.
-			ui.FillCircle(screen, float32(sx+sw-10), float32(sy+12), 10, ui.Accent)
-			ui.DrawTextCenter(screen, ui.Itoa(count), sx+sw-10, sy+5, 11, ui.Text, true)
+		if count <= 0 {
+			// Known kind, out of stock: ghost icon.
+			continue
 		}
+		if !(p.dragging && p.dragKind == kind && count == 1) {
+			drawItemIcon(screen, kind, sx+sw/2, sy+sh/2, 27)
+		}
+		// Count badge.
+		bw := ui.TextWidth("x"+ui.Itoa(count), 9.5, true) + 10
+		ui.FillRoundRect(screen, float32(sx+sw-bw-3), float32(sy+sh-17), float32(bw), 14, 7, ui.Accent)
+		ui.DrawTextCenter(screen, "x"+ui.Itoa(count), sx+sw-3-bw/2, sy+sh-16, 9.5, ui.Text, true)
 	}
 
 	// Hints.
 	switch {
 	case total == 0:
-		ui.DrawTextCenter(screen, "Nothing here yet — play Catch Food!", ScreenW/2, invShelfY+invSlotW+18, 13, ui.TextDim, false)
+		ui.DrawTextCenter(screen, "Nothing here yet — play Catch Food!", ScreenW/2, invHintY, 13, ui.TextDim, false)
 	case p.dragging:
 		def := simulation.Foods[p.dragKind]
-		ui.DrawTextCenter(screen, def.Name+" · "+effectText(def), ScreenW/2, invShelfY-28, 12, ui.Text, true)
+		ui.DrawTextCenter(screen, def.Name+" · "+effectText(def), ScreenW/2, invHintY, 12, ui.Text, true)
 	case p.selected:
 		def := simulation.Foods[p.selKind]
-		ui.DrawTextCenter(screen, "tap "+g.Pet.Name+" to give the "+def.Name+" · "+effectText(def), ScreenW/2, invShelfY-28, 12, ui.Text, true)
+		ui.DrawTextCenter(screen, "tap "+g.Pet.Name+" to give the "+def.Name+" · "+effectText(def), ScreenW/2, invHintY, 12, ui.Text, true)
 	case home:
-		ui.DrawTextCenter(screen, "drag an item to "+g.Pet.Name+" — or tap to select", ScreenW/2, invShelfY-28, 12, ui.TextDim, false)
+		ui.DrawTextCenter(screen, "drag an item to "+g.Pet.Name+" — or tap to select", ScreenW/2, invHintY, 12, ui.TextDim, false)
 	}
 
 	// The dragged item follows the pointer.
 	if p.dragging {
 		cx, cy := ui.Cursor()
-		drawItemIcon(screen, p.dragKind, cx, cy-8)
+		drawItemIcon(screen, p.dragKind, cx, cy-8, 27)
 	}
 
 	if g.tick < p.flashUntil {
-		ui.DrawTextCenter(screen, p.flash, ScreenW/2, invShelfY+invSlotW+18, 13, ui.Gold, true)
+		ui.DrawTextCenter(screen, p.flash, ScreenW/2, invHintY+22, 13, ui.Gold, true)
 	}
 }
 

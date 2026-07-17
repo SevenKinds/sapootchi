@@ -1,6 +1,8 @@
 package game
 
 import (
+	"time"
+
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"sapootchi/simulation"
@@ -21,6 +23,12 @@ func (p *SettingsPage) Update(g *Game) error {
 		g.Settings.RealSpriteInGames = !g.Settings.RealSpriteInGames
 		g.Save()
 	}
+	// Theme row: tap to cycle palettes.
+	if x, y, w, h := p.toggleRect(1); ui.Tapped(x, y, w, h) {
+		g.Settings.Theme = ui.NextTheme(g.Settings.Theme)
+		ui.SetTheme(g.Settings.Theme)
+		g.Save()
+	}
 	if DevMode {
 		for i, b := range p.devButtons() {
 			if !b.Clicked() {
@@ -33,6 +41,10 @@ func (p *SettingsPage) Update(g *Game) error {
 			case 1:
 				g.Pet.Coins += 100
 				p.flash = "+100 coins"
+			case 2:
+				// Age the pet a day (evolution testing).
+				g.Pet.BornAt = g.Pet.BornAt.Add(-24 * time.Hour)
+				p.flash = g.Pet.Name + " aged +1 day"
 			}
 			p.flashUntil = g.tick + 150
 			g.Save()
@@ -48,6 +60,7 @@ func (p *SettingsPage) Draw(g *Game, screen *ebiten.Image) {
 		"Real pet in mini-games",
 		"Play as your blob instead of a stand-in shape",
 		g.Settings.RealSpriteInGames)
+	p.drawThemeRow(screen, 1, g)
 
 	if DevMode {
 		y := float32(p.devY() - 26)
@@ -62,13 +75,29 @@ func (p *SettingsPage) Draw(g *Game, screen *ebiten.Image) {
 	}
 }
 
-func (p *SettingsPage) devY() float64 { return 220 }
+// drawThemeRow shows the current palette name; tapping cycles.
+func (p *SettingsPage) drawThemeRow(screen *ebiten.Image, i int, g *Game) {
+	x, y, w, h := p.toggleRect(i)
+	ui.FillRoundRect(screen, float32(x), float32(y), float32(w), float32(h), 14, ui.Panel)
+	ui.DrawTextBold(screen, "Theme", x+18, y+14, 15, ui.Text)
+	ui.DrawText(screen, "tap to switch the app palette", x+18, y+38, 11, ui.TextDim)
+	name := g.Settings.Theme
+	if name == "" {
+		name = ui.Themes[0].Name
+	}
+	nw := ui.TextWidth(name, 14, true)
+	ui.DrawTextBold(screen, name, x+w-nw-18, y+24, 14, ui.Accent)
+}
+
+func (p *SettingsPage) devY() float64 { return 300 }
 
 func (p *SettingsPage) devButtons() []ui.Button {
 	y := p.devY()
+	const w = (ScreenW - 56) / 2.0
 	return []ui.Button{
-		{X: 24, Y: y, W: (ScreenW - 56) / 2, H: 44, Label: "+1 Energy Pill"},
-		{X: 32 + (ScreenW-56)/2, Y: y, W: (ScreenW - 56) / 2, H: 44, Label: "+100 coins"},
+		{X: 24, Y: y, W: w, H: 44, Label: "+1 Energy Pill"},
+		{X: 32 + w, Y: y, W: w, H: 44, Label: "+100 coins"},
+		{X: 24, Y: y + 52, W: w, H: 44, Label: "Age +1 day"},
 	}
 }
 

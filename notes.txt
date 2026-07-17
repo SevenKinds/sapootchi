@@ -155,6 +155,36 @@ DRESS-UP / CUSTOMIZATION
 - [LOCKED] Dedicated dress-up screen (its own Scene) to select skin /
   customization / equip cosmetics.
 
+SKIN ECONOMY [LOCKED]
+---------------------
+- Skins are LOCKED until bought in the Shop: 150 coins each, 3 on sale at a
+  time, buying one reveals the next (alphabetical order). Ownership is
+  account-wide (Settings.OwnedSkins); equipping stays per-pet. Dress-Up shows
+  locked looks dimmed with a lock glyph. Skins worn before the unlock system
+  existed are grandfathered as owned.
+
+HOME SCREEN DRESSING [LOCKED]
+-----------------------------
+- Care row = quiet GlyphButtons (Nerd Font icons from embedded MesloLGS NF
+  Mono, +2.7MB): Feed(cutlery) jumps to the Items tab; Bathe(droplet) STARTS
+  the Scrub mini-game (removed from the games list); Rest(moon); Pet(heart).
+- [LOCKED] REST = TUCK IN: voluntary nap (no more instant +40). Sleeps at
+  fast regen until FULL energy (forced naps still wake at 50). Pill wakes
+  either kind early.
+- [LOCKED] PETTING = affection moment: hearts reaction pose always; +4
+  happiness at most once per 3 min (spam gets a wink, no stat). Inline
+  reaction poses (hearts/wink) now render over the mood on the classic skin.
+- Tab bar icons are Nerd Font glyphs too (home/gamepad/bag/cart/brush/gear).
+- Pet shadow is a true ellipse (single draw — translucent rounded-rects
+  double-blend where primitives overlap; that was the visible artifact).
+- Skin purchases go through a CONFIRM modal (blurred bg, preview, price,
+  Buy/Cancel). Modal plumbing shared: blurUnder + gradient-matched card.
+- Clouds (assets/sprites/clouds, 8 pngs) drift slowly in the far background,
+  4 parallax layers, low alpha, nearest-neighbor.
+- 12-frame spinning coin (assets/sprites/icons/coin.png strip, 16x16) used in
+  Home header, Shop, and game-list reward icons (pixel art -> nearest).
+- Games list rows show WHAT YOU CAN EARN as icons (food items / coffee / coin).
+
 COIN SINKS
 ----------
 - Pet cosmetics: hats, accessories, skins.
@@ -213,9 +243,20 @@ GAME VARIETY PASS [LOCKED]
 - Runner: random block heights/gaps, FLYING BARS (stay grounded!), coin
   pickups (+2c each), ramps.
 - Arrows: random chart, density ramp, double notes later in the run.
-- RIVER (new, 6th game): vertical 3-lane swim-upstream; tap left/right to
-  switch lanes, dodge rocks (3 lives + invuln blink), grab coins (pay out
-  directly x2), speed ramps. Energy -18.
+- RIVER v2: FREE horizontal movement (follow pointer / arrows), no lanes.
+  Obstacle variety: animated rocks (Tiny Swords art), wide LOGS (squeeze past
+  the end), DRIFTWOOD that slides sideways. 3 lives + invuln, coins pay
+  direct x2, speed ramps. Energy -18.
+- CLIMBER (replaced Runner): vertical platform climber. Tap to start; he
+  bounces NON-STOP; steer by holding a screen side (or A/D). Platform types
+  from the brackeys sheet: green solid, blue moving, orange crumbles after
+  one bounce. Horizontal wrap; camera follows; fall = game over.
+  Score = height (m); coins for height + pickups. Energy -30.
+- Pack art pipeline: .aseprite sources all ship with PNG exports — copy the
+  PNGs into assets/sprites/games/ and slice with SubImage. In use: brackeys
+  platforms.png, Tiny Swords water rocks (4 animated variants). Banked:
+  brackeys slimes/knight/fruit/world tiles, Legacy Fantasy trees/rocks/HUD,
+  Pixel Crawler dungeon tiles, Tiny Swords decos/particles (splash!).
 
 ART / SPRITES
 -------------

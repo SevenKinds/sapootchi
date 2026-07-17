@@ -54,6 +54,11 @@ func (p *DressPage) Update(g *Game) error {
 		if !ok || g.Pet.Skin == name {
 			continue
 		}
+		if !g.OwnsSkin(name) {
+			p.flash = displayName(name) + " is locked — unlock it in the Shop (" + ui.Itoa(skinPrice) + "c)"
+			p.flashUntil = g.tick + 150
+			continue
+		}
 		g.Pet.Skin = name // skins are PER PET — dressing the active one
 		g.Save()
 		label := "Classic"
@@ -83,13 +88,21 @@ func (p *DressPage) Draw(g *Game, screen *ebiten.Image) {
 		if g.Pet.Skin == name {
 			ui.FillRoundRect(screen, float32(x-3), float32(y-3), float32(w+6), float32(h+6), 14, ui.Accent)
 		}
-		ui.FillRoundRect(screen, float32(x), float32(y), float32(w), float32(h), 12, ui.PanelHi)
+		owned := g.OwnsSkin(name)
+		ui.FillRoundRect(screen, float32(x), float32(y), float32(w), float32(h), 12,
+			colIf(owned, ui.PanelHi, ui.Panel))
 
 		img := g.Sprites.Blob
 		if name != "" {
 			img = g.Sprites.Skins[name]
 		}
-		ui.DrawImageFit(screen, img, x+6, y+6, w-12, h-12)
+		if owned {
+			ui.DrawImageFit(screen, img, x+6, y+6, w-12, h-12)
+		} else {
+			// Locked: dimmed art + a lock glyph.
+			ui.DrawImageFitAlpha(screen, img, x+6, y+6, w-12, h-12, 0.22)
+			ui.DrawGlyph(screen, '\uf023', x+w/2, y+h/2, 20, ui.TextDim)
+		}
 	}
 
 	if g.tick < p.flashUntil {
@@ -97,10 +110,13 @@ func (p *DressPage) Draw(g *Game, screen *ebiten.Image) {
 	}
 }
 
-// displayName prettifies a skin file name ("natal" -> "Natal").
+// displayName prettifies a skin name via the pose-name table.
 func displayName(name string) string {
 	if name == "" {
 		return "Classic"
+	}
+	if d, ok := skinDisplay[name]; ok {
+		return d
 	}
 	return strings.ToUpper(name[:1]) + name[1:]
 }

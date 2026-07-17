@@ -14,6 +14,11 @@ type Settings struct {
 	// Skin is LEGACY: skins are per-pet now (Pet.Skin). Kept for decoding old
 	// saves; migrated and cleared on load.
 	Skin string `json:",omitempty"`
+	// OwnedSkins are the looks unlocked in the shop (account-wide: buy once,
+	// any pet can wear it). Classic is always owned.
+	OwnedSkins []string
+	// Theme is the app palette name ("" = the first/default theme).
+	Theme string
 }
 
 // saveFile is the on-disk format. Multi-pet: Pets + Active. Older formats are
@@ -52,7 +57,8 @@ func decodeSave(data []byte) (pets []*simulation.Pet, active int, s Settings, er
 }
 
 // migrateSkin moves the legacy global Settings.Skin onto the pets (they all
-// shared one look before skins became per-pet).
+// shared one look before skins became per-pet), and grandfathers any skin a
+// pet already wears into the owned set (they predate the shop unlock system).
 func migrateSkin(pets []*simulation.Pet, active int, s Settings) ([]*simulation.Pet, int, Settings, error) {
 	if s.Skin != "" {
 		for _, p := range pets {
@@ -61,6 +67,16 @@ func migrateSkin(pets []*simulation.Pet, active int, s Settings) ([]*simulation.
 			}
 		}
 		s.Skin = ""
+	}
+	owned := map[string]bool{}
+	for _, n := range s.OwnedSkins {
+		owned[n] = true
+	}
+	for _, p := range pets {
+		if p.Skin != "" && !owned[p.Skin] {
+			owned[p.Skin] = true
+			s.OwnedSkins = append(s.OwnedSkins, p.Skin)
+		}
 	}
 	return pets, active, s, nil
 }

@@ -58,7 +58,25 @@ func NewMainScene() *MainScene {
 	}
 }
 
+// Page indices (order in NewMainScene) — for programmatic navigation.
+const (
+	PageHome = iota
+	PageGames
+	PageItems
+	PageShop
+	PageDress
+	PageSettings
+)
+
 func (m *MainScene) settled() bool { return !m.dragging && !m.animating }
+
+// GoTo animates the pager to page i (e.g. Home's Feed shortcut -> Items).
+func (m *MainScene) GoTo(i int) {
+	if i >= 0 && i < len(m.pages) && i != m.idx {
+		m.idx = i
+		m.animating = true
+	}
+}
 
 func (m *MainScene) Update(g *Game) error {
 	m.updateSwipe(g)
@@ -168,27 +186,26 @@ func (m *MainScene) drawPages(g *Game, screen *ebiten.Image) {
 }
 
 func (m *MainScene) drawTabBar(g *Game, screen *ebiten.Image) {
-	// Bar background.
-	ui.FillRoundRect(screen, 0, PageH, ScreenW, TabBarH, 0, ui.Track)
-	ui.FillRoundRect(screen, 0, PageH, ScreenW, 2, 0, ui.PanelHi)
+	// Bar background (themable nav palette).
+	ui.FillRoundRect(screen, 0, PageH, ScreenW, TabBarH, 0, ui.NavBG)
 
 	// Indicator pill slides with the pager position (tracks swipes live).
 	tabW := ScreenW / float64(len(m.pages))
 	pillCx := (m.pos + 0.5) * tabW
-	ui.FillRoundRect(screen, float32(pillCx-19), float32(PageH+7), 38, 30, 15, ui.Panel)
+	ui.FillRoundRect(screen, float32(pillCx-19), float32(PageH+7), 38, 30, 15, ui.NavPill)
 
 	for i, p := range m.pages {
 		x, _, w, _ := m.tabRect(i)
 		cx := x + w/2
 		active := i == m.idx
 
-		clr := ui.TextDim
+		clr := ui.NavInkDim
 		if active {
-			clr = ui.Text
+			clr = ui.NavInk
 		}
 		ui.DrawIcon(screen, p.Icon(), cx, PageH+22, clr)
 		if active && m.settled() {
-			ui.DrawTextCenter(screen, p.Label(), cx, PageH+40, 9, ui.Text, true)
+			ui.DrawTextCenter(screen, p.Label(), cx, PageH+40, 9, ui.NavInk, true)
 		}
 	}
 }

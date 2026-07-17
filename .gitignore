@@ -13,4 +13,5 @@ artpacks/*
 # Web build artifacts (rebuilt by web/serve.sh)
 web/sapootchi.wasm
 web/wasm_exec.js
+web/sprites/
 /assetprep

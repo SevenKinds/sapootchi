@@ -131,7 +131,11 @@ the `ui` package.
 **Save format:** `{Pet, Settings}` JSON (see `game/save.go`); legacy bare-Pet
 saves still load via fallback.
 
-Run: `go run .` (desktop). Web: `GOOS=js GOARCH=wasm go build -o sapootchi.wasm .`
+Run: `go run .` (desktop; `-tags dev` adds the DEV section in Settings).
+Web: `./web/serve.sh` (LAN testing) or `./web/deploy.sh` (Cloudflare Pages,
+needs `wrangler login`). Pages has a 25 MiB per-file limit — animations are
+NOT embedded on js builds (see assets/anims_*.go + game/anims_js.go: fetched
+at runtime with browser fetch; net/http would cost ~8 MiB of WASM).
 Test the rules: `go test ./simulation/`.
 
 **Resolution model:** scenes author coordinates + font sizes in a fixed 360×640

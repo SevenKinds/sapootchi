@@ -17,12 +17,12 @@ import (
 //go:embed sprites/blob.png
 var BlobPNG []byte
 
-// Sprites holds all prepared sprite art:
+// Sprites holds the prepared sprite art (moods/clouds/icons/games/items).
+// Animations are NOT here: they embed on native builds only (anims_native.go)
+// and are fetched over HTTP on web — they are the biggest asset block and
+// would push the WASM bundle past Cloudflare Pages' 25 MiB file limit.
 //
-//	sprites/moods/sapo_NN.png — emotion poses (white bg removed from brand TIFs)
-//	sprites/skins/<name>.png  — themed full-art skins (dress-up)
-//
-//go:embed sprites
+//go:embed sprites/blob.png sprites/moods sprites/clouds sprites/icons sprites/games sprites/items
 var Sprites embed.FS
 
 // IconFontTTF is MesloLGS Nerd Font Mono (Apache 2.0 / MIT patches) — used for

@@ -111,6 +111,7 @@ func (g *Game) current() Scene { return g.scenes[len(g.scenes)-1] }
 func (g *Game) Update() error {
 	g.tick++
 	ui.UpdateInput()
+	g.drainAnims()
 	// Real-time decay every tick (works off wall clock, not frame count).
 	// EVERY pet keeps living, not just the active one.
 	now := time.Now()

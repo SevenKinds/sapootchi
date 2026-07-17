@@ -32,6 +32,7 @@ type spriteBank struct {
 	RiverRocks [][]*ebiten.Image                     // animated rock variants (River)
 	Foam       []*ebiten.Image                       // animated foam patches (River water texture)
 	Items      map[simulation.FoodKind]*ebiten.Image // pixel item sprites (apple/steak/berries)
+	animsIn    chan animDelivery                     // async anim arrival (web fetch)
 	Fruits     []*ebiten.Image                       // brackeys fruit sprites (catch-food)
 	Meat       *ebiten.Image                         // steak sprite
 	Bag        *ebiten.Image                         // money-bag catcher (catch-food)
@@ -155,29 +156,10 @@ func loadSprites() *spriteBank {
 	b.Items[simulation.FoodEnergyPill] = pill
 	itemSprites = b.Items // package-level for drawItemIcon
 
-	// Animations: each subdir of sprites/anims is a frame sequence.
+	// Animations load platform-specifically: embedded on native, fetched over
+	// HTTP on web (see anims_native.go / anims_js.go).
 	b.Anims = map[string][]*ebiten.Image{}
-	if dirs, err := fs.ReadDir(assets.Sprites, "sprites/anims"); err == nil {
-		for _, d := range dirs {
-			if !d.IsDir() {
-				continue
-			}
-			frameDir := path.Join("sprites/anims", d.Name())
-			frames, err := fs.ReadDir(assets.Sprites, frameDir)
-			if err != nil {
-				continue
-			}
-			var seq []*ebiten.Image
-			for _, f := range frames { // ReadDir returns sorted names
-				if strings.HasSuffix(f.Name(), ".png") {
-					seq = append(seq, loadFS(path.Join(frameDir, f.Name())))
-				}
-			}
-			if len(seq) > 0 {
-				b.Anims[d.Name()] = seq
-			}
-		}
-	}
+	loadAnims(b)
 	return b
 }
 

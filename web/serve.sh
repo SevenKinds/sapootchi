@@ -12,6 +12,11 @@ WASM_EXEC="$(go env GOROOT)/lib/wasm/wasm_exec.js"
 [ -f "$WASM_EXEC" ] || WASM_EXEC="$(go env GOROOT)/misc/wasm/wasm_exec.js"
 cp "$WASM_EXEC" web/wasm_exec.js
 
+# Animations are fetched at runtime on web builds — stage them.
+rm -rf web/sprites
+mkdir -p web/sprites
+cp -R assets/sprites/anims web/sprites/anims
+
 IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo localhost)
 echo ""
 echo "  On your phone (same Wi-Fi):  http://$IP:8080"

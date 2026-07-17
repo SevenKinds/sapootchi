@@ -15,6 +15,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/goregular"
+
+	"sapootchi/assets"
 )
 
 // Palette — a friendly dark theme.
@@ -40,6 +42,16 @@ var (
 	Gold   = color.RGBA{0xff, 0xd2, 0x4c, 0xff} // coins
 	Track  = color.RGBA{0x1c, 0x20, 0x2b, 0xff} // stat-bar background
 	Shadow = color.RGBA{0x00, 0x00, 0x00, 0x40} // soft drop shadow
+
+	// ButtonInk is the label color on filled buttons (themes with light
+	// backgrounds still use dark text everywhere EXCEPT on button fills).
+	ButtonInk = color.RGBA{0xed, 0xef, 0xf5, 0xff}
+
+	// Tab bar (nav) colors — themable separately from panels.
+	NavBG     = color.RGBA{0x1c, 0x20, 0x2b, 0xff}
+	NavPill   = color.RGBA{0x2a, 0x30, 0x40, 0xff}
+	NavInk    = color.RGBA{0xed, 0xef, 0xf5, 0xff}
+	NavInkDim = color.RGBA{0x9a, 0xa3, 0xb2, 0xff}
 )
 
 // Scale is the render-density multiplier. Scenes author coordinates and font
@@ -51,7 +63,9 @@ var Scale = 2.0
 var (
 	regular *text.GoTextFaceSource
 	bold    *text.GoTextFaceSource
-	white   *ebiten.Image // 1x1 source for triangle fills
+	icons   *text.GoTextFaceSource // Nerd Font: FA & friends glyphs
+	white   *ebiten.Image          // 1x1 source for triangle fills
+	circle  *ebiten.Image          // antialiased unit circle for ellipse fills
 )
 
 func init() {
@@ -63,10 +77,50 @@ func init() {
 	if err != nil {
 		log.Fatalf("load bold font: %v", err)
 	}
-	regular, bold = r, b
+	ic, err := text.NewGoTextFaceSource(bytes.NewReader(assets.IconFontTTF))
+	if err != nil {
+		log.Fatalf("load icon font: %v", err)
+	}
+	regular, bold, icons = r, b, ic
 
 	white = ebiten.NewImage(1, 1)
 	white.Fill(color.White)
+
+	circle = ebiten.NewImage(128, 128)
+	vector.DrawFilledCircle(circle, 64, 64, 62, color.White, true)
+}
+
+// FillEllipse fills a smooth ellipse centered at (cx, cy) in design units.
+// Drawn as ONE image, so translucent colors stay uniform — unlike composed
+// rounded rects, which double-blend where their primitives overlap.
+func FillEllipse(dst *ebiten.Image, cx, cy, rx, ry float64, clr color.Color) {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(rx*2/128*Scale, ry*2/128*Scale)
+	op.GeoM.Translate((cx-rx)*Scale, (cy-ry)*Scale)
+	op.Filter = ebiten.FilterLinear
+	op.ColorScale.ScaleWithColor(clr)
+	dst.DrawImage(circle, op)
+}
+
+// DrawGlyph draws a Nerd-Font icon glyph centered at (cx, cy) in design units.
+func DrawGlyph(dst *ebiten.Image, r rune, cx, cy, size float64, clr color.Color) {
+	f := &text.GoTextFace{Source: icons, Size: size * Scale}
+	s := string(r)
+	w, h := text.Measure(s, f, 0)
+	op := &text.DrawOptions{}
+	op.GeoM.Translate(cx*Scale-w/2, cy*Scale-h/2)
+	op.ColorScale.ScaleWithColor(clr)
+	text.Draw(dst, s, f, op)
+}
+
+// DrawImageNearest draws img with its top-left at (x, y), scaled by factor,
+// with nearest-neighbor filtering (pixel art) and the given alpha.
+func DrawImageNearest(dst *ebiten.Image, img *ebiten.Image, x, y, factor float64, alpha float32) {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(factor*Scale, factor*Scale)
+	op.GeoM.Translate(x*Scale, y*Scale)
+	op.ColorScale.ScaleAlpha(alpha)
+	dst.DrawImage(img, op)
 }
 
 func face(size float64, isBold bool) *text.GoTextFace {
@@ -123,6 +177,11 @@ func FillRoundRect(dst *ebiten.Image, x, y, w, h, r float32, clr color.Color) {
 // DrawImageFit draws img scaled to fit inside the design-space box (x,y,w,h),
 // centered, preserving aspect ratio.
 func DrawImageFit(dst *ebiten.Image, img *ebiten.Image, x, y, w, h float64) {
+	DrawImageFitAlpha(dst, img, x, y, w, h, 1)
+}
+
+// DrawImageFitAlpha is DrawImageFit with an opacity multiplier.
+func DrawImageFitAlpha(dst *ebiten.Image, img *ebiten.Image, x, y, w, h float64, alpha float32) {
 	iw := float64(img.Bounds().Dx())
 	ih := float64(img.Bounds().Dy())
 	s := w / iw
@@ -133,6 +192,7 @@ func DrawImageFit(dst *ebiten.Image, img *ebiten.Image, x, y, w, h float64) {
 	op.GeoM.Scale(s*Scale, s*Scale)
 	op.GeoM.Translate((x+(w-iw*s)/2)*Scale, (y+(h-ih*s)/2)*Scale)
 	op.Filter = ebiten.FilterLinear
+	op.ColorScale.ScaleAlpha(alpha)
 	dst.DrawImage(img, op)
 }
 

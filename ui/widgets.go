@@ -47,11 +47,47 @@ func (b Button) Draw(dst *ebiten.Image, enabled bool) {
 		r, Shadow)
 	FillRoundRect(dst, float32(b.X), float32(b.Y), float32(b.W), float32(b.H), r, fill)
 
-	label := Text
+	label := ButtonInk
 	if !enabled {
 		label = TextDim
 	}
 	DrawTextCenter(dst, b.Label, b.X+b.W/2, b.Y+b.H/2-8, 15, label, true)
+}
+
+// GlyphButton is a quieter button: panel-colored, an icon glyph on top and a
+// small label under it. Used for the Home care row — present, not shouty.
+type GlyphButton struct {
+	X, Y, W, H float64
+	Glyph      rune
+	GlyphColor color.Color
+	Label      string
+}
+
+// Hover reports whether the cursor is over the button.
+func (b GlyphButton) Hover() bool {
+	cx, cy := Cursor()
+	return inRect(cx, cy, b.X, b.Y, b.W, b.H)
+}
+
+// Clicked reports a completed tap on the button this frame.
+func (b GlyphButton) Clicked() bool {
+	return Tapped(b.X, b.Y, b.W, b.H)
+}
+
+// Draw renders the button. Disabled buttons grey out entirely.
+func (b GlyphButton) Draw(dst *ebiten.Image, enabled bool) {
+	bg := Panel
+	if enabled && b.Hover() {
+		bg = PanelHi
+	}
+	FillRoundRect(dst, float32(b.X), float32(b.Y), float32(b.W), float32(b.H), 12, bg)
+
+	gc, lc := b.GlyphColor, TextDim
+	if !enabled {
+		gc, lc = Disabled, Disabled
+	}
+	DrawGlyph(dst, b.Glyph, b.X+b.W/2, b.Y+b.H/2-8, 19, gc)
+	DrawTextCenter(dst, b.Label, b.X+b.W/2, b.Y+b.H-17, 9.5, lc, true)
 }
 
 // StatBar draws a labeled meter (0..100) with a rounded track and fill.

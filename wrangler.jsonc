@@ -1,0 +1,13 @@
+// Cloudflare config: serves the web/ folder as static assets.
+// Two ways to deploy (both need `wrangler login` once):
+//   npx wrangler deploy        -> Worker at sapootchi.<account>.workers.dev
+//   ./web/deploy.sh            -> Cloudflare Pages at sapootchi.pages.dev
+// ALWAYS build + stage first (deploy.sh does it; for the Worker route run
+// ./web/stage.sh before `wrangler deploy`).
+{
+	"name": "sapootchi",
+	"compatibility_date": "2026-07-01",
+	"assets": {
+		"directory": "./web"
+	}
+}

@@ -1,0 +1,31 @@
+# Deploy to Cloudflare on every push to main:
+# build the WASM, stage the web bundle, `wrangler deploy` (see wrangler.jsonc).
+#
+# Requires two repo secrets (Settings -> Secrets and variables -> Actions):
+#   CLOUDFLARE_API_TOKEN   (dashboard -> profile -> API Tokens ->
+#                           "Edit Cloudflare Workers" template)
+#   CLOUDFLARE_ACCOUNT_ID  (dashboard -> Workers & Pages, right sidebar)
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Stage web bundle
+        run: ./web/stage.sh
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

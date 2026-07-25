@@ -8,6 +8,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- AdPluga property verification. -->
+  <meta name="adpluga-site-verification" content="adpluga-verify=5ebwaXI-7IUkjq5I9QExwA" />
   <style>
     html, body {
       margin: 0; padding: 0; height: 100%;
@@ -17,9 +19,78 @@
       -webkit-user-select: none; user-select: none;
     }
     canvas { display: block; }
+
+    /* HTML overlays the WASM canvas can't draw itself (ad iframe, PayPal
+       button). Positioned by the game over the Settings screen; hidden
+       otherwise. touch-action/user-select re-enabled so they stay tappable. */
+    .ov {
+      position: fixed; display: none; box-sizing: border-box;
+      z-index: 10; touch-action: auto;
+      -webkit-user-select: auto; user-select: auto;
+      align-items: center; justify-content: center; overflow: hidden;
+    }
+    #ad-slot {
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      outline: 1px dashed rgba(255,255,255,0.15);
+      color: #6b7280; font: 11px system-ui, sans-serif;
+    }
   </style>
 </head>
 <body>
+  <!-- Overlays live BEFORE the canvas ebiten appends, and sit above it via z-index. -->
+  <div id="donate-slot" class="ov"></div>
+  <div id="ad-slot" class="ov">
+    <!-- AdPluga ad unit goes here: paste the embed snippet from your AdPluga
+         dashboard (the ad <ins>/<script> for this placement). It will be shown
+         and positioned over the Settings screen by the game. -->
+    <span>Advertisement</span>
+  </div>
+
+  <!-- Bridge the game (WASM) calls to place/hide the HTML overlays. -->
+  <script>
+    (function () {
+      function canvasEl() { return document.querySelector('canvas'); }
+      window.sapootchiOverlay = {
+        // Map a design-space rect (360x640) onto the canvas's on-screen box.
+        place: function (id, dx, dy, dw, dh) {
+          var c = canvasEl(), el = document.getElementById(id);
+          if (!c || !el) return;
+          var r = c.getBoundingClientRect();
+          var sx = r.width / 360, sy = r.height / 640;
+          el.style.display = 'flex';
+          el.style.left = (r.left + dx * sx) + 'px';
+          el.style.top = (r.top + dy * sy) + 'px';
+          el.style.width = (dw * sx) + 'px';
+          el.style.height = (dh * sy) + 'px';
+        },
+        hide: function () {
+          ['donate-slot', 'ad-slot'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+          });
+        }
+      };
+    })();
+  </script>
+
+  <!-- PayPal Donate SDK: https://developer.paypal.com/sdk/donate/ -->
+  <script src="https://www.paypalobjects.com/donate/sdk/donate-sdk.js" charset="UTF-8"></script>
+  <script>
+    (function () {
+      if (!window.PayPal || !PayPal.Donation) return;
+      PayPal.Donation.Button({
+        env: 'production',
+        hosted_button_id: 'L9V5FMCXE4HME',
+        image: {
+          src: 'https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif',
+          alt: 'Donate with PayPal button',
+          title: 'PayPal - The safer, easier way to pay online!'
+        }
+      }).render('#donate-slot');
+    })();
+  </script>
+
   <script src="wasm_exec.js"></script>
   <script>
     const go = new Go();

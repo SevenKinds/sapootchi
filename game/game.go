@@ -41,7 +41,8 @@ type Game struct {
 	reactImg   *ebiten.Image
 	reactUntil int
 
-	lastPerfectYearDay int // day-of-year the Perfect Care bonus was last given
+	lastPerfectYearDay int  // day-of-year the Perfect Care bonus was last given
+	overlayShown       bool // web: are the ad/donate DOM overlays currently up
 }
 
 // MaxPets caps the roster (tadpoles from the shop add pets up to this).
@@ -125,6 +126,9 @@ func (g *Game) Update() error {
 	if err := g.current().Update(g); err != nil {
 		return err
 	}
+
+	// Web: keep the ad/donate HTML overlays in sync with the Settings page.
+	g.syncOverlays()
 
 	// Autosave every ~5s.
 	if g.tick%300 == 0 {

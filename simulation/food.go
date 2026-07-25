@@ -31,14 +31,14 @@ type FoodDef struct {
 }
 
 // Foods is the item catalog. Apple is the standard (+25%). Coffee restores
-// energy (one Runner play's worth plus a little) — note it cannot wake an
-// asleep pet; the forced nap stays sacred. The Energy Pill is a DEV item:
+// energy (a couple of games' worth) — note it cannot wake an asleep pet; the
+// forced nap stays sacred. The Energy Pill is a DEV item:
 // never sold, never won — only spawned from dev mode.
 var Foods = map[FoodKind]FoodDef{
 	FoodApple:      {Name: "Apple", Hunger: standardFoodHunger},
 	FoodSandwich:   {Name: "Steak", Hunger: 50},
 	FoodCake:       {Name: "Berries", Hunger: 10, Happiness: 15},
-	FoodCoffee:     {Name: "Coffee", Verb: "Drink", Energy: 35},
+	FoodCoffee:     {Name: "Coffee", Verb: "Drink", Energy: 45},
 	FoodEnergyPill: {Name: "Energy Pill", Verb: "Use", Energy: 100, WakesUp: true},
 }
 

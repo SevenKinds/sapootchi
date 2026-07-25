@@ -30,7 +30,7 @@ const (
 	arrowsGoodWin       = 28.0
 
 	arrowsHappiness  = 10.0
-	arrowsEnergyCost = 12.0
+	arrowsEnergyCost = 9.0
 )
 
 // Coffee payout tiers by final score.

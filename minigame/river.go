@@ -29,7 +29,7 @@ const (
 	riverInvulnTicks   = 70
 	riverFollowSpeed   = 6.5 // max px/tick toward the pointer
 
-	riverEnergyCost = 18.0
+	riverEnergyCost = 13.0
 )
 
 type riverKind int
@@ -316,8 +316,7 @@ func (r *River) Draw(screen *ebiten.Image) {
 		if r.Sprite != nil {
 			ui.DrawImageFit(screen, r.Sprite, r.petX-riverPetSize/2+wob, riverPetY-riverPetSize/2, riverPetSize, riverPetSize)
 		} else {
-			ui.FillRoundRect(screen, float32(r.petX-riverPetSize/2+wob), float32(riverPetY-riverPetSize/2),
-				riverPetSize, riverPetSize, 16, ui.Good)
+			drawBlobStandin(screen, r.petX-riverPetSize/2+wob, riverPetY-riverPetSize/2, riverPetSize, riverPetSize)
 		}
 	}
 

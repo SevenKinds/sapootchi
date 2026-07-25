@@ -125,8 +125,10 @@ memorizable). `Result{Score, Coins, StatDelta, Hidden, Items}`; the shared
 results card itemizes rewards, tap to dismiss. All shared visuals go through
 the `ui` package.
 
-**Energy economy (tuned):** idle regen 100%/day, sleep regen 480%/day
-(nap 0→50 in ~2.5h); costs Runner 30 / Scrub 10 / Simon 8 / Catch Food 0.
+**Energy economy (tuned — kept feeling too tight, loosened both ends):** idle
+regen 200%/day (full bar in ~12h, so a few hours away tops you back up), sleep
+regen 660%/day (nap 0→50 in ~1.8h); game costs Climber 20 / River 13 / Arrows 9
+/ Scrub 7 / Simon 6 / Catch Food 0; Coffee restores +45.
 
 **Save format:** `{Pet, Settings}` JSON (see `game/save.go`); legacy bare-Pet
 saves still load via fallback.

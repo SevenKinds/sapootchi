@@ -63,6 +63,9 @@ func New() *Game {
 		pets = []*simulation.Pet{simulation.NewRandomPet("Blobby", time.Now(), rng)}
 		active = 0
 	}
+	if settings.Theme == "" {
+		settings.Theme = "SAPO Dark" // brand look on first landing
+	}
 
 	g := &Game{
 		Pet:      pets[active],

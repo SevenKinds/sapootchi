@@ -51,6 +51,12 @@ func (p *HomePage) Update(g *Game) error {
 		}
 	}
 
+	// Pencil next to the name: rename the active pet.
+	if px, py, pw, ph := p.pencilRect(g); ui.Tapped(px, py, pw, ph) {
+		g.Push(NewNameEditModal(g.current(), g.Pet.Name))
+		return nil
+	}
+
 	// Tap the header to switch between pets (when there is more than one).
 	if len(g.Pets) > 1 && ui.Tapped(16, 16, ScreenW-32, 60) {
 		pet := g.SwitchPet()
@@ -185,14 +191,13 @@ func (p *HomePage) Draw(g *Game, screen *ebiten.Image) {
 func (p *HomePage) drawHeader(g *Game, screen *ebiten.Image) {
 	pet := g.Pet
 	ui.FillRoundRect(screen, 16, 16, ScreenW-32, 60, 12, ui.Panel)
-	name := pet.Name
-	if len(g.Pets) > 1 {
-		name += "  " + ui.Itoa(g.Active+1) + "/" + ui.Itoa(len(g.Pets))
-	}
-	ui.DrawTextBold(screen, name, 32, 26, 18, ui.Text)
+	ui.DrawTextBold(screen, pet.Name, 32, 26, 18, ui.Text)
+	// Pencil to rename, right after the name.
+	px, py, pw, ph := p.pencilRect(g)
+	ui.DrawGlyph(screen, '\uf040', px+pw/2, py+ph/2, 12, ui.TextDim)
 	sub := pet.Personality.String() + " · " + pet.Phase.String()
 	if len(g.Pets) > 1 {
-		sub += " · tap to switch"
+		sub += " · " + ui.Itoa(g.Active+1) + "/" + ui.Itoa(len(g.Pets)) + " · tap to switch"
 	}
 	ui.DrawText(screen, sub, 32, 50, 12, ui.TextDim)
 
@@ -202,6 +207,12 @@ func (p *HomePage) drawHeader(g *Game, screen *ebiten.Image) {
 	rightX := float64(ScreenW - 32)
 	ui.DrawTextBold(screen, coinStr, rightX-cw, 30, 16, ui.Gold)
 	g.DrawCoin(screen, rightX-cw-24, 30, 18)
+}
+
+// pencilRect is the rename hit-box/glyph slot, sitting just right of the name.
+func (p *HomePage) pencilRect(g *Game) (x, y, w, h float64) {
+	nameW := ui.TextWidth(g.Pet.Name, 18, true)
+	return 32 + nameW + 6, 18, 30, 30
 }
 
 func (p *HomePage) drawAway(g *Game, screen *ebiten.Image) {

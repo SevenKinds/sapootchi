@@ -25,7 +25,7 @@ const (
 	simonShowTicks = 26 // how long a pad stays lit during playback
 	simonGapTicks  = 12 // gap between playback lights
 	simonHappiness = 15.0
-	simonEnergyCst = 8.0
+	simonEnergyCst = 6.0
 )
 
 type simonState int

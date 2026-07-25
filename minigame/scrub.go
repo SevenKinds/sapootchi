@@ -25,7 +25,7 @@ const (
 	scrubDirtFull    = 100.0
 	scrubPowerFactor = 1.6 // dirt removed per design-px of pointer travel
 
-	scrubEnergyCost = 10.0
+	scrubEnergyCost = 7.0
 )
 
 type dirtSpot struct {
@@ -170,7 +170,7 @@ func (s *Scrub) Draw(screen *ebiten.Image) {
 	if s.Sprite != nil {
 		ui.DrawImageFit(screen, s.Sprite, px, py, pw, ph)
 	} else {
-		ui.FillRoundRect(screen, float32(px+20), float32(py+30), float32(pw-40), float32(ph-40), 60, ui.Good)
+		drawBlobStandin(screen, px+20, py+30, pw-40, ph-40)
 	}
 
 	// Dirt spots (shrink as they get scrubbed).

@@ -1,7 +1,6 @@
 package minigame
 
 import (
-	"image/color"
 	"math"
 	"math/rand"
 	"time"
@@ -29,7 +28,7 @@ const (
 	climbPlatH   = 12.0
 	climbTimeCap = 120 * 60 // safety cap; falling is the real end
 
-	climbEnergyCost = 30.0
+	climbEnergyCost = 20.0
 )
 
 type platKind int
@@ -346,11 +345,7 @@ func (c *Climber) drawPet(screen *ebiten.Image) {
 			climbPetSize, climbPetSize)
 		return
 	}
-	ui.FillRoundRect(screen, float32(x), float32(y), float32(w), float32(hh), 12, ui.Good)
-	for _, ex := range []float64{x + w*0.42, x + w*0.72} {
-		ui.FillRoundRect(screen, float32(ex-6), float32(y+hh*0.34-6), 12, 12, 6, color.White)
-		ui.FillRoundRect(screen, float32(ex-2), float32(y+hh*0.34-2), 4, 4, 2, color.RGBA{0x10, 0x14, 0x1a, 0xff})
-	}
+	drawBlobStandin(screen, x, y, w, hh)
 }
 
 func (c *Climber) Done() bool { return c.done }

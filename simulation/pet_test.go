@@ -120,8 +120,8 @@ func TestCoffeeRestoresEnergy(t *testing.T) {
 	if err := p.Feed(FoodCoffee); err != nil {
 		t.Fatal(err)
 	}
-	if got := p.Stats.Energy; got != 75 {
-		t.Fatalf("energy after coffee = %.2f, want 75", got)
+	if got := p.Stats.Energy; got != 85 {
+		t.Fatalf("energy after coffee = %.2f, want 85", got)
 	}
 	if p.Stats.Hunger != hungerBefore {
 		t.Fatalf("coffee should not affect hunger, got %.2f", p.Stats.Hunger)
@@ -166,9 +166,9 @@ func TestMoodPrecedence(t *testing.T) {
 func TestEnergyRegensWhileIdle(t *testing.T) {
 	p, now := newTestPet()
 	p.Stats.Energy = 30
-	// Half a day idle: +regen/2, still under the 100 clamp.
-	p.Update(now.Add(12*time.Hour), rand.New(rand.NewSource(1)))
-	want := 30 + energyIdleRegenPerDay/2
+	// A quarter day idle: +regen/4, still under the 100 clamp.
+	p.Update(now.Add(6*time.Hour), rand.New(rand.NewSource(1)))
+	want := 30 + energyIdleRegenPerDay/4
 	if got := p.Stats.Energy; got < want-0.1 || got > want+0.1 {
 		t.Fatalf("energy after half an idle day = %.2f, want ~%.0f", got, want)
 	}

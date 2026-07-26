@@ -8,8 +8,6 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <!-- AdPluga property verification. -->
-  <meta name="adpluga-site-verification" content="adpluga-verify=5ebwaXI-7IUkjq5I9QExwA" />
   <style>
     html, body {
       margin: 0; padding: 0; height: 100%;
@@ -29,46 +27,37 @@
       -webkit-user-select: auto; user-select: auto;
       align-items: center; justify-content: center; overflow: hidden;
     }
-    #ad-slot {
-      border-radius: 12px;
-      background: rgba(255,255,255,0.04);
-      outline: 1px dashed rgba(255,255,255,0.15);
-      color: #6b7280; font: 11px system-ui, sans-serif;
-    }
   </style>
 </head>
 <body>
-  <!-- Overlays live BEFORE the canvas ebiten appends, and sit above it via z-index. -->
+  <!-- Overlay lives BEFORE the canvas ebiten appends, and sits above it via z-index. -->
   <div id="donate-slot" class="ov"></div>
-  <div id="ad-slot" class="ov">
-    <!-- AdPluga ad unit goes here: paste the embed snippet from your AdPluga
-         dashboard (the ad <ins>/<script> for this placement). It will be shown
-         and positioned over the Settings screen by the game. -->
-    <span>Advertisement</span>
-  </div>
 
   <!-- Bridge the game (WASM) calls to place/hide the HTML overlays. -->
   <script>
     (function () {
       function canvasEl() { return document.querySelector('canvas'); }
       window.sapootchiOverlay = {
-        // Map a design-space rect (360x640) onto the canvas's on-screen box.
+        // Map a design-space rect (360x640) onto the game content. Ebiten
+        // letterboxes the framebuffer inside the canvas — preserving aspect and
+        // centering (black bars on the wide side) — so we must match that: one
+        // uniform scale + the centering offset, NOT width/360 by height/640.
         place: function (id, dx, dy, dw, dh) {
           var c = canvasEl(), el = document.getElementById(id);
           if (!c || !el) return;
           var r = c.getBoundingClientRect();
-          var sx = r.width / 360, sy = r.height / 640;
+          var scale = Math.min(r.width / 360, r.height / 640);
+          var ox = r.left + (r.width - 360 * scale) / 2;
+          var oy = r.top + (r.height - 640 * scale) / 2;
           el.style.display = 'flex';
-          el.style.left = (r.left + dx * sx) + 'px';
-          el.style.top = (r.top + dy * sy) + 'px';
-          el.style.width = (dw * sx) + 'px';
-          el.style.height = (dh * sy) + 'px';
+          el.style.left = (ox + dx * scale) + 'px';
+          el.style.top = (oy + dy * scale) + 'px';
+          el.style.width = (dw * scale) + 'px';
+          el.style.height = (dh * scale) + 'px';
         },
         hide: function () {
-          ['donate-slot', 'ad-slot'].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-          });
+          var el = document.getElementById('donate-slot');
+          if (el) el.style.display = 'none';
         }
       };
     })();

@@ -63,7 +63,7 @@ func (p *SettingsPage) Draw(g *Game, screen *ebiten.Image) {
 	p.drawThemeRow(screen, 1, g)
 
 	if OnWeb {
-		p.drawWebSlots(screen)
+		p.drawDonateSlot(screen)
 	}
 
 	if DevMode {
@@ -93,18 +93,14 @@ func (p *SettingsPage) drawThemeRow(screen *ebiten.Image, i int, g *Game) {
 	ui.DrawTextBold(screen, name, x+w-nw-18, y+24, 14, ui.Accent)
 }
 
-// drawWebSlots draws the reserved donate + ad areas (web builds). The real
-// PayPal button and AdPluga ad are HTML overlays positioned over these boxes by
-// syncOverlays; these panels are the frame/fallback beneath them.
-func (p *SettingsPage) drawWebSlots(screen *ebiten.Image) {
+// drawDonateSlot draws the reserved donate area (web builds): a caption + a
+// subtle frame. The real PayPal button is an HTML overlay positioned over this
+// box by syncOverlays and draws its own label, so there's no in-canvas text to
+// poke out around it.
+func (p *SettingsPage) drawDonateSlot(screen *ebiten.Image) {
 	d := settingsDonateRect()
 	ui.DrawText(screen, "Enjoying Sapootchi? Support the dev", 24, d.y-18, 11, ui.TextDim)
 	ui.FillRoundRect(screen, float32(d.x), float32(d.y), float32(d.w), float32(d.h), 12, ui.Panel)
-	ui.DrawTextCenter(screen, "Donate with PayPal", ScreenW/2, d.y+d.h/2-7, 13, ui.TextDim, true)
-
-	a := settingsAdRect()
-	ui.FillRoundRect(screen, float32(a.x), float32(a.y), float32(a.w), float32(a.h), 12, ui.Panel)
-	ui.DrawTextCenter(screen, "Advertisement", ScreenW/2, a.y+a.h/2-6, 11, ui.TextDim, false)
 }
 
 func (p *SettingsPage) devY() float64 { return 272 }

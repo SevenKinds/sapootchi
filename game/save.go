@@ -19,6 +19,10 @@ type Settings struct {
 	OwnedSkins []string
 	// Theme is the app palette name ("" = the first/default theme).
 	Theme string
+	// Coins is the ONE account-wide wallet, spendable on any pet. (Coins used
+	// to live per-pet on simulation.Pet.Coins; those are migrated in here on
+	// load — see migrateSkin.)
+	Coins int
 }
 
 // saveFile is the on-disk format. Multi-pet: Pets + Active. Older formats are
@@ -76,6 +80,14 @@ func migrateSkin(pets []*simulation.Pet, active int, s Settings) ([]*simulation.
 		if p.Skin != "" && !owned[p.Skin] {
 			owned[p.Skin] = true
 			s.OwnedSkins = append(s.OwnedSkins, p.Skin)
+		}
+	}
+	// Coins are now one shared wallet: fold any legacy per-pet balances into it
+	// and zero the pets. Idempotent — after the first load the pets hold 0.
+	for _, p := range pets {
+		if p.Coins != 0 {
+			s.Coins += p.Coins
+			p.Coins = 0
 		}
 	}
 	return pets, active, s, nil

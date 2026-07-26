@@ -99,7 +99,7 @@ type Pet struct {
 	Personality Personality
 	Stats       Stats
 	Hidden      Hidden
-	Coins       int
+	Coins       int // LEGACY: coins are now one shared wallet (see game.Settings.Coins); migrated off the pet on load
 	Inventory   map[FoodKind]int
 
 	// Skin is the equipped cosmetic look ("" = classic). Plain data — the

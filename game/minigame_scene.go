@@ -49,7 +49,7 @@ func (s *MiniGameScene) Update(g *Game) error {
 func (s *MiniGameScene) apply(g *Game) {
 	r := s.game.Result()
 	p := g.Pet
-	p.Coins += r.Coins
+	g.AddCoins(r.Coins) // coins are the player's shared wallet, not the pet's
 	p.Stats.Happiness = clamp01(p.Stats.Happiness + r.StatDelta.Happiness)
 	p.Stats.Hunger = clamp01(p.Stats.Hunger + r.StatDelta.Hunger)
 	p.Stats.Hygiene = clamp01(p.Stats.Hygiene + r.StatDelta.Hygiene)

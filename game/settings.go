@@ -39,7 +39,7 @@ func (p *SettingsPage) Update(g *Game) error {
 				g.Pet.AddFood(simulation.FoodEnergyPill, 1)
 				p.flash = "+1 Energy Pill (check Items)"
 			case 1:
-				g.Pet.Coins += 100
+				g.AddCoins(100)
 				p.flash = "+100 coins"
 			case 2:
 				// Age the pet a day (evolution testing).

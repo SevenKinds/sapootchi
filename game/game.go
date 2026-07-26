@@ -98,6 +98,26 @@ func (g *Game) AddPet(p *simulation.Pet) {
 	g.Save()
 }
 
+// --- coins: one account-wide wallet ---
+//
+// Coins are the player's, not the pet's: earned and spent from a single balance
+// (Settings.Coins) no matter which pet is active. Mutate via these, then Save().
+
+// Coins returns the shared balance.
+func (g *Game) Coins() int { return g.Settings.Coins }
+
+// AddCoins credits the shared wallet.
+func (g *Game) AddCoins(n int) { g.Settings.Coins += n }
+
+// SpendCoins debits the wallet if affordable, reporting whether it went through.
+func (g *Game) SpendCoins(n int) bool {
+	if g.Settings.Coins < n {
+		return false
+	}
+	g.Settings.Coins -= n
+	return true
+}
+
 // --- scene stack ---
 
 func (g *Game) Push(s Scene) { g.scenes = append(g.scenes, s) }

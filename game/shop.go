@@ -92,8 +92,7 @@ func (p *ShopPage) Update(g *Game) error {
 		switch {
 		case !it.available:
 			p.flash = it.reason
-		case g.Pet.Coins >= it.price:
-			g.Pet.Coins -= it.price
+		case g.SpendCoins(it.price):
 			p.flash = it.buy(g)
 			g.Save()
 		default:
@@ -107,7 +106,7 @@ func (p *ShopPage) Update(g *Game) error {
 		if !ui.Tapped(p.skinTile(i)) {
 			continue
 		}
-		if g.Pet.Coins < skinPrice {
+		if g.Coins() < skinPrice {
 			p.flash = "Not enough coins"
 			p.flashUntil = g.tick + 150
 			continue
@@ -118,7 +117,9 @@ func (p *ShopPage) Update(g *Game) error {
 			"a new look for any of your pets",
 			g.Sprites.Skins[skin], skinPrice, g.current(),
 			func(g *Game) {
-				g.Pet.Coins -= skinPrice
+				if !g.SpendCoins(skinPrice) {
+					return
+				}
 				g.Settings.OwnedSkins = append(g.Settings.OwnedSkins, skin)
 				p.flash = displayName(skin) + " unlocked — equip it in Dress!"
 				p.flashUntil = g.tick + 150
@@ -140,7 +141,7 @@ func (p *ShopPage) skinsForSale(g *Game) []string {
 func (p *ShopPage) Draw(g *Game, screen *ebiten.Image) {
 	ui.DrawTextBold(screen, "Shop", 24, 28, 24, ui.Text)
 
-	coinStr := ui.Itoa(g.Pet.Coins)
+	coinStr := ui.Itoa(g.Coins())
 	cw := ui.TextWidth(coinStr, 16, true)
 	rightX := float64(ScreenW - 24)
 	ui.DrawTextBold(screen, coinStr, rightX-cw, 32, 16, ui.Gold)
@@ -148,7 +149,7 @@ func (p *ShopPage) Draw(g *Game, screen *ebiten.Image) {
 
 	for i, it := range p.items(g) {
 		b := p.rowButton(i)
-		enabled := it.available && g.Pet.Coins >= it.price
+		enabled := it.available && g.Coins() >= it.price
 		b.Draw(screen, enabled)
 		ui.DrawTextBold(screen, it.label, b.X+16, b.Y+8, 14, colIf(enabled, ui.Text, ui.TextDim))
 		sub := ui.Itoa(it.price) + " coins"
@@ -165,7 +166,7 @@ func (p *ShopPage) Draw(g *Game, screen *ebiten.Image) {
 		ui.DrawText(screen, "buying one reveals the next", 24, 444, 10, ui.TextDim)
 		for i, name := range sale {
 			x, y, w, h := p.skinTile(i)
-			affordable := g.Pet.Coins >= skinPrice
+			affordable := g.Coins() >= skinPrice
 			ui.FillRoundRect(screen, float32(x), float32(y), float32(w), float32(h), 12,
 				colIf(affordable, ui.PanelHi, ui.Panel))
 			ui.DrawImageFit(screen, g.Sprites.Skins[name], x+8, y+6, w-16, h-30)

@@ -138,6 +138,6 @@ func (m *ConfirmModal) Draw(g *Game, screen *ebiten.Image) {
 	}
 
 	buy, cancel := m.buttons()
-	buy.Draw(screen, m.price < 0 || g.Pet.Coins >= m.price)
+	buy.Draw(screen, m.price < 0 || g.Coins() >= m.price)
 	cancel.Draw(screen, true)
 }

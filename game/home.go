@@ -155,7 +155,7 @@ func (p *HomePage) checkPerfectCare(g *Game) {
 		return
 	}
 	g.lastPerfectYearDay = yd
-	g.Pet.Coins += 10
+	g.AddCoins(10)
 	p.setFlash(g, "Perfect Care! +10 coins")
 }
 
@@ -202,7 +202,7 @@ func (p *HomePage) drawHeader(g *Game, screen *ebiten.Image) {
 	ui.DrawText(screen, sub, 32, 50, 12, ui.TextDim)
 
 	// Coins, right-aligned with the spinning coin.
-	coinStr := ui.Itoa(pet.Coins)
+	coinStr := ui.Itoa(g.Coins())
 	cw := ui.TextWidth(coinStr, 16, true)
 	rightX := float64(ScreenW - 32)
 	ui.DrawTextBold(screen, coinStr, rightX-cw, 30, 16, ui.Gold)
